@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import logo from '@/assets/Logo.png'
 </script>
-
+ 
 <template>
   <header class="bg-ibc-navy px-8 py-3 flex items-center justify-between min-h-[100px]">
 

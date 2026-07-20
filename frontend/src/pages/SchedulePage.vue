@@ -111,7 +111,26 @@ const previousMonth = () => {
 }
 
 const nextMonth = () => {
-  currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1)
+  currentDate.value = new Date(
+    currentDate.value.getFullYear(),
+    currentDate.value.getMonth() + 1,
+    1
+  )
+}
+
+const getAllGamesForMonth = computed(() => {
+  const allGames: Array<{ date: string; games: Game[] }> = []
+  const entries = Object.entries(games).sort()
+  for (const [date, gameList] of entries) {
+    allGames.push({ date, games: gameList })
+  }
+  return allGames
+})
+
+const formatDateForList = (dateStr: string) => {
+  const [year, month, day] = dateStr.split('-')
+  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 </script>
 
@@ -139,8 +158,8 @@ const nextMonth = () => {
           </button>
         </div>
 
-        <!-- Calendar Grid -->
-        <div class="grid grid-cols-7 gap-2">
+        <!-- DESKTOP: Calendar Grid -->
+        <div class="hidden md:grid grid-cols-7 gap-2">
           <!-- Day headers -->
           <div
             v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']"
@@ -170,6 +189,39 @@ const nextMonth = () => {
                 {{ game.team }} - {{ game.time }}
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- MOBILE: List View -->
+        <div class="md:hidden space-y-3">
+          <div v-if="getAllGamesForMonth.length === 0" class="text-center text-slate-500 py-8">
+            <p>No games scheduled for this month</p>
+          </div>
+
+          <div
+            v-for="dayGroup in getAllGamesForMonth"
+            :key="dayGroup.date"
+            class="space-y-2"
+          >
+            <!-- Date Header -->
+            <div class="text-sm font-bold text-ibc-navy bg-slate-100 px-4 py-2 rounded">
+              {{ formatDateForList(dayGroup.date) }}
+            </div>
+
+            <!-- Games for this date -->
+            <button
+              v-for="game in dayGroup.games"
+              :key="game.id"
+              @click="openGameDetails(game)"
+              class="w-full flex items-center justify-between bg-white border-l-4 border-ibc-red p-4 rounded hover:shadow-lg transition cursor-pointer"
+            >
+              <div class="text-left">
+                <div class="font-bold text-ibc-navy">{{ game.team }} Team</div>
+                <div class="text-sm text-slate-600">{{ game.time }}</div>
+                <div class="text-xs text-slate-500">{{ game.location }}</div>
+              </div>
+              <div class="text-ibc-red text-xl">→</div>
+            </button>
           </div>
         </div>
       </div>

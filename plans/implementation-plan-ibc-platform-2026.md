@@ -421,7 +421,7 @@ frontend/
 theme: {
   extend: {
     colors: {
-      'ibc-navy':  '#1e3a8a',
+      'ibc-navy':  '#0c2038',
       'ibc-red':   '#ef4444',
       'ibc-cream': '#f5f1e8',
     }

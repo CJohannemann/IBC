@@ -7,13 +7,15 @@ import logo from '@/assets/Logo.png'
 
     <!-- Left: Logo -->
     <div class="flex items-center gap-5">
+      <router-link to="/" class="flex-shrink-0">
       <img
         :src="logo"
         alt="Independence Baseball Club"
-        class="h-20 w-20 object-contain flex-shrink-0
+          class="h-20 w-20 object-contain
                drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]
                [image-rendering:crisp-edges]"
       />
+      </router-link>
 
       <!-- Club Name text block -->
       <div class="flex flex-col leading-tight">

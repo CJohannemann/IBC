@@ -7,10 +7,8 @@ const navLinks: NavLink[] = [
   {
     label: 'Teams',
     children: [
-      { label: '9U',  to: '/teams/9u'  },
+      { label: '14U', to: '/teams/14u' },
       { label: '10U', to: '/teams/10u' },
-      { label: '11U', to: '/teams/11u' },
-      { label: '12U', to: '/teams/12u' },
     ],
   },
   { label: 'Schedule',   to: '/schedule'   },

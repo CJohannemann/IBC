@@ -5,8 +5,7 @@ export default {
     extend: {
       colors: {
         ibc: {
-          navy:    '#0f2044',
-          blue:    '#1e3a8a',
+          navy:    '#0c2038',
           red:     '#ef4444',
           gold:    '#fbbf24',
           cream:   '#f5f1e8',

@@ -18,7 +18,7 @@ function closeAll() {
 
     <!-- ── Nav Bar ─────────────────────────────────────────────────── -->
     <nav
-      class="bg-ibc-blue border-t-[3px] border-ibc-red flex items-stretch min-h-[52px] px-8 relative z-50"
+      class="bg-ibc-navy border-t-[3px] border-ibc-red flex items-stretch min-h-[52px] px-8 relative z-50"
       @mouseleave="closeAll"
     >
       <!-- Brand -->

@@ -27,7 +27,7 @@ function closeAll() {
       </div>
 
       <!-- Desktop Links -->
-      <div class="hidden md:flex items-stretch flex-1">
+      <div class="hidden md:flex items-stretch ml-auto">
         <template v-for="link in links" :key="link.label">
 
           <!-- Dropdown item -->

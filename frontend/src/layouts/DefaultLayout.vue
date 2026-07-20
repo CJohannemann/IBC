@@ -23,7 +23,6 @@ const navLinks: NavLink[] = [
   { label: 'News',     to: '/news'     },
   { label: 'Sponsors', to: '/sponsors' },
   { label: '__spacer__' },
-  { label: 'Admin', to: '/admin', highlight: true },
 ]
 </script>
 

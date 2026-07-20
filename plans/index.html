@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Independence Baseball Club</title>
+  <style>
+    /* ─── Reset ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #f5f1e8;
+    }
+
+    a { text-decoration: none; color: inherit; }
+
+    /* ─── Top Header Bar ─────────────────────────────────────────── */
+    .header-top {
+      background-color: #0f2044;
+      padding: 18px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 110px;
+    }
+
+    .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    /* Shield badge */
+    .logo-badge {
+      position: relative;
+      width: 72px;
+      height: 80px;
+      flex-shrink: 0;
+    }
+
+    .logo-badge svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .club-name-block {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+
+    .club-name-block .line1 {
+      color: #ffffff;
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .club-name-block .line2 {
+      color: #ef4444;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+
+    /* Vertical rule between logo block and right text */
+    .header-divider {
+      width: 1px;
+      height: 60px;
+      background: rgba(255,255,255,0.25);
+      margin: 0 30px;
+    }
+
+    .header-right {
+      color: rgba(255,255,255,0.75);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      text-align: right;
+    }
+
+    /* ─── Nav Bar ────────────────────────────────────────────────── */
+    .navbar {
+      background-color: #1e3a8a;
+      border-top: 3px solid #ef4444;
+      display: flex;
+      align-items: stretch;
+      min-height: 52px;
+      padding: 0 40px;
+      position: relative;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      padding-right: 30px;
+      border-right: 1px solid rgba(255,255,255,0.2);
+      margin-right: 10px;
+      white-space: nowrap;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: stretch;
+      flex: 1;
+    }
+
+    /* Each nav item */
+    .nav-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      border-right: 1px solid rgba(255,255,255,0.15);
+      transition: background-color 0.15s;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .nav-item:first-child { border-left: 1px solid rgba(255,255,255,0.15); }
+
+    .nav-item:hover,
+    .nav-item.active {
+      background-color: rgba(255,255,255,0.12);
+    }
+
+    .nav-item .chevron {
+      margin-left: 6px;
+      font-size: 10px;
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+
+    .nav-item.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    /* Spacer pushes last items right */
+    .nav-spacer { flex: 1; }
+
+    .nav-item.highlight {
+      color: #fbbf24;
+      font-weight: 700;
+    }
+
+    /* ─── Dropdowns ──────────────────────────────────────────────── */
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background-color: #0f2044;
+      border-top: 3px solid #ef4444;
+      min-width: 180px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      z-index: 200;
+    }
+
+    .nav-item.open .dropdown-menu {
+      display: block;
+    }
+
+    .dropdown-menu a {
+      display: block;
+      padding: 12px 20px;
+      color: #e2e8f0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      transition: background-color 0.15s, color 0.15s;
+    }
+
+    .dropdown-menu a:last-child { border-bottom: none; }
+
+    .dropdown-menu a:hover {
+      background-color: #1e3a8a;
+      color: #fbbf24;
+    }
+
+    /* ─── Mobile hamburger ───────────────────────────────────────── */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      padding: 10px;
+      margin-left: auto;
+    }
+
+    .hamburger span {
+      width: 24px;
+      height: 2px;
+      background: #fff;
+      border-radius: 2px;
+      transition: all 0.3s;
+    }
+
+    /* ─── Mobile menu ────────────────────────────────────────────── */
+    .mobile-menu {
+      display: none;
+      background-color: #0f2044;
+      flex-direction: column;
+    }
+
+    .mobile-menu.open { display: flex; }
+
+    .mobile-menu a {
+      padding: 14px 24px;
+      color: #e2e8f0;
+      font-size: 14px;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .mobile-menu a.sub-item {
+      padding-left: 40px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .mobile-menu a:hover { color: #fbbf24; }
+
+    /* ─── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .header-top { padding: 16px 20px; min-height: 90px; }
+      .header-divider { display: none; }
+      .header-right { display: none; }
+
+      .navbar { padding: 0 16px; }
+      .nav-links, .nav-brand { display: none; }
+      .hamburger { display: flex; }
+    }
+
+    /* ─── Page demo content ──────────────────────────────────────── */
+    .page-content {
+      padding: 60px 40px;
+      text-align: center;
+      color: #1e3a8a;
+    }
+
+    .page-content h2 {
+      font-size: 28px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .page-content p {
+      color: #64748b;
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ TOP HEADER BAR ═══════════════════════════════════════════ -->
+  <header class="header-top">
+
+    <div class="logo-section">
+
+      <!-- Shield SVG badge -->
+      <div class="logo-badge">
+        <svg viewBox="0 0 72 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Shield shape -->
+          <path d="M36 2 L68 14 L68 44 C68 62 36 78 36 78 C36 78 4 62 4 44 L4 14 Z"
+                fill="#ef4444" stroke="#c0392b" stroke-width="1.5"/>
+          <!-- Inner shield highlight -->
+          <path d="M36 10 L60 20 L60 44 C60 58 36 70 36 70 C36 70 12 58 12 44 L12 20 Z"
+                fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+          <!-- Baseball icon -->
+          <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
+                fill="white" font-size="30" font-family="Arial" font-weight="900">⚾</text>
+        </svg>
+      </div>
+
+      <div class="club-name-block">
+        <span class="line1">Independence</span>
+        <span class="line2">Baseball Club</span>
+      </div>
+    </div>
+
+    <div class="header-divider"></div>
+
+    <div class="header-right">
+      Independence Baseball Club
+    </div>
+
+  </header>
+
+  <!-- ═══ NAVIGATION BAR ═══════════════════════════════════════════ -->
+  <nav class="navbar">
+
+    <div class="nav-brand">Baseball</div>
+
+    <div class="nav-links">
+
+      <!-- Teams dropdown -->
+      <div class="nav-item" data-dropdown>
+        Teams <span class="chevron">&#9660;</span>
+        <div class="dropdown-menu">
+          <a href="#">9U</a>
+          <a href="#">10U</a>
+          <a href="#">11U</a>
+          <a href="#">12U</a>
+        </div>
+      </div>
+
+      <!-- Schedule -->
+      <a class="nav-item" href="#">Schedule</a>
+
+      <!-- Stats dropdown -->
+      <div class="nav-item" data-dropdown>
+        Statistics <span class="chevron">&#9660;</span>
+        <div class="dropdown-menu">
+          <a href="#">Batting Leaders</a>
+          <a href="#">Pitching Leaders</a>
+          <a href="#">Team Stats</a>
+        </div>
+      </div>
+
+      <!-- News -->
+      <a class="nav-item" href="#">News</a>
+
+      <!-- Sponsors -->
+      <a class="nav-item" href="#">Sponsors</a>
+
+      <!-- Spacer -->
+      <div class="nav-spacer"></div>
+
+      <!-- Admin (right-aligned, highlighted) -->
+      <a class="nav-item highlight" href="#">Admin</a>
+
+    </div>
+
+    <!-- Mobile hamburger -->
+    <div class="hamburger" id="hamburger" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </div>
+
+  </nav>
+
+  <!-- ═══ MOBILE MENU ═══════════════════════════════════════════════ -->
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="#">Teams</a>
+    <a class="sub-item" href="#">9U</a>
+    <a class="sub-item" href="#">10U</a>
+    <a class="sub-item" href="#">11U</a>
+    <a class="sub-item" href="#">12U</a>
+    <a href="#">Schedule</a>
+    <a href="#">Statistics</a>
+    <a class="sub-item" href="#">Batting Leaders</a>
+    <a class="sub-item" href="#">Pitching Leaders</a>
+    <a class="sub-item" href="#">Team Stats</a>
+    <a href="#">News</a>
+    <a href="#">Sponsors</a>
+    <a href="#">Admin</a>
+  </div>
+
+  <!-- ═══ DEMO PAGE BODY ════════════════════════════════════════════ -->
+  <div class="page-content">
+    <h2>Welcome to Independence Baseball Club</h2>
+    <p>Page content goes here.</p>
+  </div>
+
+  <script>
+    // ── Desktop dropdown toggle ──────────────────────────────────────
+    document.querySelectorAll('.nav-item[data-dropdown]').forEach(item => {
+      item.addEventListener('click', e => {
+        const isOpen = item.classList.contains('open');
+        // Close all open dropdowns
+        document.querySelectorAll('.nav-item.open').forEach(el => el.classList.remove('open'));
+        if (!isOpen) item.classList.add('open');
+        e.stopPropagation();
+      });
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item.open').forEach(el => el.classList.remove('open'));
+    });
+
+    // ── Mobile hamburger ─────────────────────────────────────────────
+    document.getElementById('hamburger').addEventListener('click', () => {
+      document.getElementById('mobile-menu').classList.toggle('open');
+    });
+  </script>
+
+</body>
+</html>

@@ -14,9 +14,14 @@
         body {
             font-family: 'Arial Black', 'Arial Bold', Arial, sans-serif;
             background-color: #f5f1e8;
-            padding: 20px;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
             max-width: 800px;
             margin: 0 auto;
+            padding: 20px;
         }
 
         .header {
@@ -258,32 +263,112 @@
             font-size: 28px;
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
             .header {
                 flex-direction: column;
                 text-align: center;
+                padding: 20px;
+            }
+
+            .logo {
+                width: 60px;
+                height: 60px;
+                font-size: 30px;
+            }
+
+            .club-name h1 {
+                font-size: 24px;
+            }
+
+            .club-name .subtitle {
+                font-size: 16px;
             }
 
             .event-info {
                 text-align: center;
-                margin-top: 20px;
+                margin-top: 15px;
+            }
+
+            .event-info .title {
+                font-size: 20px;
+            }
+
+            .event-info .details {
+                font-size: 12px;
+            }
+
+            .content {
+                padding: 15px;
+            }
+
+            .current-pot {
+                padding: 25px;
+            }
+
+            .current-pot .label {
+                font-size: 20px;
+            }
+
+            .current-pot .amount {
+                font-size: 56px;
+            }
+
+            .current-pot .live-tally {
+                font-size: 12px;
             }
 
             .split-boxes {
                 grid-template-columns: 1fr;
+                gap: 15px;
             }
 
-            .current-pot .amount {
-                font-size: 64px;
+            .split-box {
+                padding: 20px;
+            }
+
+            .split-box .label {
+                font-size: 18px;
             }
 
             .split-box .amount {
                 font-size: 36px;
             }
+
+            .quick-add {
+                padding: 20px;
+            }
+
+            .quick-add .section-title {
+                font-size: 18px;
+            }
+
+            .add-button {
+                padding: 20px;
+                font-size: 28px;
+            }
+
+            .custom-section {
+                flex-direction: column;
+            }
+
+            .custom-input {
+                padding: 15px;
+                font-size: 18px;
+            }
+
+            .add-final-button {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="container">
     <div class="header">
         <div class="logo-section">
             <div class="logo">⚾</div>
@@ -301,7 +386,7 @@
     <div class="content">
         <div class="current-pot">
             <div class="label">CURRENT POT</div>
-            <div class="amount" id="totalPot">$731.75</div>
+            <div class="amount" id="totalPot">$0</div>
             <div class="live-tally">LIVE TALLY • UPDATES INSTANTLY</div>
         </div>
 
@@ -310,33 +395,33 @@
                 <div class="icon">🏆</div>
                 <div class="label">WINNER GETS</div>
                 <div class="percentage">(50%)</div>
-                <div class="amount" id="winnerAmount">$365.88</div>
+                <div class="amount" id="winnerAmount">$0</div>
             </div>
             <div class="split-box">
                 <div class="icon">🤝</div>
                 <div class="label">CLUB KEEPS</div>
                 <div class="percentage">(50%)</div>
-                <div class="amount" id="clubAmount">$365.88</div>
+                <div class="amount" id="clubAmount">$0</div>
             </div>
         </div>
 
         <div class="quick-add">
             <div class="section-title">QUICK ADD TICKET SALES</div>
             <div class="button-grid">
-                <button class="add-button" onclick="addToPot(5)">+ $5</button>
-                <button class="add-button" onclick="addToPot(10)">+ $10</button>
-                <button class="add-button" onclick="addToPot(20)">+ $20</button>
-                <button class="add-button" onclick="addToPot(50)">+ $50</button>
+                <button class="add-button" data-amount="5">+ $5</button>
+                <button class="add-button" data-amount="10">+ $10</button>
+                <button class="add-button" data-amount="20">+ $20</button>
+                <button class="add-button" data-amount="50">+ $50</button>
             </div>
             <div class="custom-section">
                 <input type="number" class="custom-input" id="customAmount" placeholder="Custom amount" min="0" step="0.01">
-                <button class="add-final-button" onclick="addCustomAmount()">ADD</button>
+                <button class="add-final-button" id="addCustomBtn">ADD</button>
             </div>
         </div>
     </div>
 
     <script>
-        let currentTotal = 731.75;
+        let currentTotal = 0;
 
         function updateDisplay() {
             const halfAmount = currentTotal / 2;
@@ -366,20 +451,52 @@
 
         function animateUpdate() {
             const potElement = document.getElementById('totalPot');
+            const winnerElement = document.getElementById('winnerAmount');
+            const clubElement = document.getElementById('clubAmount');
+            
             potElement.style.transform = 'scale(1.1)';
+            winnerElement.style.transform = 'scale(1.1)';
+            clubElement.style.transform = 'scale(1.1)';
+            
             setTimeout(() => {
                 potElement.style.transform = 'scale(1)';
+                winnerElement.style.transform = 'scale(1)';
+                clubElement.style.transform = 'scale(1)';
             }, 200);
         }
 
-        document.getElementById('customAmount').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                addCustomAmount();
-            }
-        });
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click handlers to quick add buttons
+            const quickButtons = document.querySelectorAll('.add-button');
+            quickButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const amount = parseFloat(this.getAttribute('data-amount'));
+                    addToPot(amount);
+                });
+            });
 
-        const potElement = document.getElementById('totalPot');
-        potElement.style.transition = 'transform 0.2s ease';
+            // Add click handler to custom add button
+            document.getElementById('addCustomBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                addCustomAmount();
+            });
+
+            // Add enter key handler to custom input
+            document.getElementById('customAmount').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addCustomAmount();
+                }
+            });
+
+            // Add transition effects
+            document.getElementById('totalPot').style.transition = 'transform 0.2s ease';
+            document.getElementById('winnerAmount').style.transition = 'transform 0.2s ease';
+            document.getElementById('clubAmount').style.transition = 'transform 0.2s ease';
+        });
     </script>
+    </div>
 </body>
 </html>

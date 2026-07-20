@@ -142,19 +142,21 @@ const formatDateForList = (dateStr: string) => {
 
       <!-- Month Navigation -->
       <div class="bg-white rounded-lg shadow p-6 mb-8">
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center justify-between gap-4 mb-6">
           <button
             @click="previousMonth"
-            class="px-4 py-2 bg-ibc-navy text-white rounded font-semibold hover:bg-ibc-blue transition"
+            class="w-24 px-4 py-2 bg-ibc-navy text-white rounded font-semibold hover:bg-ibc-blue transition flex flex-col items-center gap-1"
           >
-            ← Previous
+            <span>Previous</span>
+            <span>←</span>
           </button>
-          <h2 class="text-2xl font-black text-ibc-navy">{{ monthYear }}</h2>
+          <h2 class="text-2xl font-black text-ibc-navy text-center flex-1">{{ monthYear }}</h2>
           <button
             @click="nextMonth"
-            class="px-4 py-2 bg-ibc-navy text-white rounded font-semibold hover:bg-ibc-blue transition"
+            class="w-24 px-4 py-2 bg-ibc-navy text-white rounded font-semibold hover:bg-ibc-blue transition flex flex-col items-center gap-1"
           >
-            Next →
+            <span>Next</span>
+            <span>→</span>
           </button>
         </div>
 

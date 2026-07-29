@@ -258,7 +258,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 
 //****Edit Player Items****
 interface PlayerForm {

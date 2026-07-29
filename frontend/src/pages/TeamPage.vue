@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()

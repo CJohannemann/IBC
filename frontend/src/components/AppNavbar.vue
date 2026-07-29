@@ -82,6 +82,14 @@ function closeAll() {
           </RouterLink>
 
         </template>
+
+        <!-- Admin link (always visible to the right of other links) -->
+        <RouterLink
+          to="/admin/players"
+          class="flex items-center px-5 text-sm font-semibold tracking-wide transition-colors hover:bg-white/10 text-white"
+        >
+          Admin
+        </RouterLink>
       </div>
 
       <!-- Mobile hamburger -->
@@ -127,6 +135,15 @@ function closeAll() {
           {{ link.label }}
         </RouterLink>
       </template>
+
+      <!-- Mobile Admin link -->
+      <RouterLink
+        to="/admin/players"
+        class="px-6 py-3.5 text-sm font-semibold border-b border-white/10 transition-colors hover:text-ibc-gold text-white"
+        @click="mobileOpen = false"
+      >
+        Admin
+      </RouterLink>
     </div>
 
   </div>

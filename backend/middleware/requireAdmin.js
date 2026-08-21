@@ -43,7 +43,9 @@ function createRequireAdmin(db) {
         }
       }
 
-      res.set('WWW-Authenticate', 'Basic realm="Admin"')
+      // Deliberately no WWW-Authenticate header: it makes browsers pop up
+      // their own login dialog over the app's login form. Basic Auth clients
+      // like curl send credentials preemptively and do not need the challenge.
       return res.status(401).json({ error: 'authentication_required' })
     } catch (err) {
       console.error('auth error:', err)

@@ -1505,10 +1505,10 @@
                 </div>
 
                 <input
-                    ref="fileInputSwagAdd"
+                    ref="fileInputUniformAdd"
                     type="file"
                     accept="image/*"
-                    @change="handleFileSelect($event, 'swag-add')"
+                    @change="handleFileSelect($event, 'uniform-add')"
                     class="hidden" />
 
                 <div v-if="uploadingUniformAdd" class="mt-2 text-sm text-ibc-navy">
@@ -2658,6 +2658,8 @@ async function uploadFile(file: File, mode: 'add' | 'edit' | 'swag-add' | 'unifo
       uploadingSwagAdd.value = true
     } else if (mode === 'swag-edit') {
       uploadingSwagEdit.value = true
+    } else if (mode === 'uniform-add') {
+      uploadingUniformAdd.value = true
     } else if (mode === 'player-add') {
       uploadingPlayerAdd.value = true
     } else if (mode === 'player-edit') {
@@ -2675,6 +2677,8 @@ async function uploadFile(file: File, mode: 'add' | 'edit' | 'swag-add' | 'unifo
       swagForm.image_path = response.path
     } else if (mode === 'swag-edit') {
       editSwagForm.image_path = response.path
+    } else if (mode === 'uniform-add') {
+      uniformForm.image_path = response.path
     } else if (mode === 'player-add') {
       modalForm.photo_path = response.path
     } else if (mode === 'player-edit') {
@@ -2692,6 +2696,8 @@ async function uploadFile(file: File, mode: 'add' | 'edit' | 'swag-add' | 'unifo
       uploadingSwagAdd.value = false
     } else if (mode === 'swag-edit') {
       uploadingSwagEdit.value = false
+    } else if (mode === 'uniform-add') {
+      uploadingUniformAdd.value = false
     } else if (mode === 'player-add') {
       uploadingPlayerAdd.value = false
     } else if (mode === 'player-edit') {
@@ -2721,6 +2727,11 @@ function removeImage(mode: 'add' | 'edit' | 'swag-add' | 'swag-edit' | 'uniform-
     if (fileInputSwagEdit.value) {
       fileInputSwagEdit.value.value = ''
     }
+  } else if (mode === 'uniform-add') {
+    uniformForm.image_path = null
+    if (fileInputUniformAdd.value) {
+      fileInputUniformAdd.value.value = ''
+    }
   } else if (mode === 'player-add') {
     modalForm.photo_path = ''
     playerImageFileAdd.value = null
@@ -2747,6 +2758,8 @@ function triggerFileInput(mode: 'add' | 'edit' | 'swag-add' | 'swag-edit' | 'uni
     fileInputSwagAdd.value?.click()
   } else if (mode === 'swag-edit') {
     fileInputSwagEdit.value?.click()
+  } else if (mode === 'uniform-add') {
+    fileInputUniformAdd.value?.click()
   } else if (mode === 'player-add') {
     fileInputPlayerAdd.value?.click()
   } else if (mode === 'player-edit') {
@@ -2777,6 +2790,7 @@ const uniformMsgClass = ref('')
 const uniformTitle = ref('')
 const uniformMessage = ref('')
 const uploadingUniformAdd = ref(false)
+const fileInputUniformAdd = ref<HTMLInputElement | null>(null)
 // Loaded when a schedule modal opens, so the picker always reflects what exists.
 const uniforms = ref<Uniform[]>([])
 

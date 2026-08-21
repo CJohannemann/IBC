@@ -49,12 +49,15 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
-  if (to.meta.requiresAuth) {
-    const auth = useAuthStore()
-    if (!auth.isAuthenticated) {
-      return '/admin/login'
-    }
+router.beforeEach(async (to) => {
+  if (!to.meta.requiresAuth) return
+
+  const auth = useAuthStore()
+  // httpOnly cookie: only the server can tell us whether the session is valid.
+  await auth.ensureLoaded()
+
+  if (!auth.isAuthenticated) {
+    return { path: '/admin/login', query: { redirect: to.fullPath } }
   }
 })
 

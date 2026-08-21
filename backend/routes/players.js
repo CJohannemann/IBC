@@ -1,4 +1,5 @@
 const { Router } = require('express')
+const { deleteImageIfUnused } = require('../lib/imageCleanup')
 
 const PLAYER_COLUMNS = `
   id,
@@ -140,6 +141,8 @@ module.exports = function createPlayerRoutes(db, requireAdmin) {
     } = req.body
 
     try {
+      const existing = await db.get('SELECT photo_path FROM players WHERE id = ?', id)
+
       const result = await db.run(
         `
         UPDATE players
@@ -173,6 +176,11 @@ module.exports = function createPlayerRoutes(db, requireAdmin) {
         ]
       )
 
+      // Swapping or clearing the photo orphans the old file - drop it.
+      if (existing && existing.photo_path && existing.photo_path !== (photo_path || null)) {
+        await deleteImageIfUnused(db, existing.photo_path)
+      }
+
       res.json({
         success: true,
         changes: result.changes
@@ -187,11 +195,22 @@ module.exports = function createPlayerRoutes(db, requireAdmin) {
   // DELETE player
   router.delete('/:playerNumber', requireAdmin, async (req, res) => {
     try {
+      // player_number can match several rows (multiple seasons) - collect them all.
+      const existing = await db.all(
+        'SELECT photo_path FROM players WHERE player_number = ? AND photo_path IS NOT NULL',
+        req.params.playerNumber
+      )
+
       const result = await db.run(DELETE_PLAYER, req.params.playerNumber)
 
       if (result.changes === 0) {
         return res.status(404).json({ error: 'Player not found' })
       }
+
+      for (const row of existing) {
+        await deleteImageIfUnused(db, row.photo_path)
+      }
+
       res.json({ success: true })
     } catch (err) {
       console.error(err)

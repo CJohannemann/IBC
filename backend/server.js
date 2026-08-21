@@ -1,11 +1,12 @@
 require('dotenv').config()
 const express = require('express')
+const fs = require('fs')
 const cors = require('cors')
 const path = require('path')
 const sqlite = require('sqlite')
 const sqlite3 = require('sqlite3')
 
-const requireAdmin = require('./middleware/requireAdmin')
+const createRequireAdmin = require('./middleware/requireAdmin')
 const createPlayerRoutes = require('./routes/players')
 const createTeamRoutes = require('./routes/teams')
 const createCoachRoutes = require('./routes/coaches')
@@ -17,9 +18,12 @@ const createScheduleRoutes = require('./routes/schedule')
 const createStatsRoutes = require('./routes/stats')
 const createAdminRoutes = require('./routes/admin')
 const createUploadRoutes = require('./routes/upload')
+const createAuthRoutes = require('./routes/auth')
+const { purgeExpired } = require('./lib/sessions')
 
-const DB_PATH = path.join(__dirname, '..', 'database', 'baseball.db')
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'database', 'baseball.db')
 const PORT = process.env.PORT || 3001
+const CORS_ORIGIN = process.env.CORS_ORIGIN
 
 async function start() {
   // ======================================================
@@ -31,13 +35,33 @@ async function start() {
     driver: sqlite3.Database,
   })
 
+  await db.run('PRAGMA foreign_keys = ON')
+
+  // Idempotent (everything is CREATE ... IF NOT EXISTS), so the auth tables are
+  // guaranteed to exist rather than failing at the first login attempt.
+  await db.exec(fs.readFileSync(path.join(__dirname, '..', 'database', 'users.sql'), 'utf8'))
+
+  const purged = await purgeExpired(db)
+  if (purged) console.log(`Purged ${purged} expired session(s)`)
+
+  const requireAdmin = createRequireAdmin(db)
+
   // ======================================================
   // EXPRESS SETUP
   // ======================================================
 
   const app = express()
 
-  app.use(cors())
+  // Behind nginx, req.ip is the proxy without this - which would collapse every
+  // visitor onto one rate-limit bucket.
+  app.set('trust proxy', process.env.TRUST_PROXY || 'loopback')
+
+  // Credentialed requests cannot use a wildcard origin, so cookie auth needs an
+  // explicit allow-list. Unset (dev) reflects the request origin.
+  app.use(cors({
+    origin: CORS_ORIGIN ? CORS_ORIGIN.split(',').map((o) => o.trim()) : true,
+    credentials: true,
+  }))
   app.use(express.json())
 
   // Serve uploaded files statically
@@ -56,6 +80,7 @@ async function start() {
   app.use('/api/swag', createSwagRoutes(db, requireAdmin))
   app.use('/api/schedule', createScheduleRoutes(db, requireAdmin))
   app.use('/api/stats', createStatsRoutes(db, requireAdmin))
+  app.use('/api/auth', createAuthRoutes(db, requireAdmin))
   app.use('/api/admin', createAdminRoutes(requireAdmin))
   app.use('/api/upload', createUploadRoutes(requireAdmin))
 
@@ -68,16 +93,31 @@ async function start() {
   })
 
   app.get('/debug/routes', (req, res) => {
-
+    res.json({ ok: true })
   })
 
   // ======================================================
   // START SERVER
   // ======================================================
 
-  app.listen(PORT, () => {
+  app.listen(PORT, async () => {
     console.log(`Backend API listening on http://localhost:${PORT}`)
     console.log(`Using DB at ${DB_PATH}`)
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('WARNING: NODE_ENV is not "production" - session cookies are not marked Secure')
+    }
+    if (!CORS_ORIGIN && process.env.NODE_ENV === 'production') {
+      console.warn('WARNING: CORS_ORIGIN is unset - any origin may send credentialed requests')
+    }
+
+    const { total } = await db.get('SELECT COUNT(*) AS total FROM users WHERE active = 1')
+    if (total === 0) {
+      console.warn('WARNING: no active users. Create one: node backend/scripts/manage-users.js add <username>')
+    } else if (process.env.ADMIN_PASS) {
+      console.warn(`WARNING: ${total} user account(s) exist but ADMIN_USER/ADMIN_PASS are still set.`)
+      console.warn('         That shared break-glass password still works. Unset it in backend/.env.')
+    }
   })
 }
 

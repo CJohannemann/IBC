@@ -1,0 +1,14 @@
+# Reference copy - installed by install-service.sh. Placeholders: __USER__ __REPO__ __NODE__
+
+[Unit]
+Description=Back up the IBC database
+Documentation=https://github.com/CJohannemann/IBC
+
+[Service]
+Type=oneshot
+User=__USER__
+WorkingDirectory=__REPO__/backend
+ExecStart=__NODE__ scripts/backup-db.js
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ibc-backup

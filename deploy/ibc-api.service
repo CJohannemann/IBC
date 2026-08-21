@@ -1,0 +1,38 @@
+# Reference copy. install-service.sh generates the real one with your actual
+# paths filled in and writes it to /etc/systemd/system/ibc-api.service.
+#
+# Placeholders: __USER__ __REPO__ __NODE__
+
+[Unit]
+Description=Independence Baseball Club API
+Documentation=https://github.com/CJohannemann/IBC
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__REPO__/backend
+
+# dotenv reads backend/.env relative to the working directory, exactly as it
+# does when you run `node server.js` by hand.
+ExecStart=__NODE__ server.js
+
+# Restart on crash, and keep trying rather than giving up after a burst.
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0
+
+# Logs go to the journal: `journalctl -u ibc-api -f`
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ibc-api
+
+# Light hardening. /usr and /etc become read-only to this process; home stays
+# writable so the database and uploads still work.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

@@ -1,2 +1,11 @@
 node_modules/
 .env
+backups/
+deploy/deploy.env
+
+# Databases live outside the repo on the server (see deploy/README.md).
+# Tracking them makes `git pull` fight with live data.
+*.db
+*.db-wal
+*.db-shm
+*.bak

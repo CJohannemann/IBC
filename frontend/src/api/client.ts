@@ -3,15 +3,9 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: '/api',
-})
-
-// Inject Basic Auth header when credentials exist in sessionStorage
-api.interceptors.request.use((config) => {
-  const credentials = sessionStorage.getItem('admin_credentials')
-  if (credentials) {
-    config.headers.Authorization = `Basic ${credentials}`
-  }
-  return config
+  // Session lives in an httpOnly cookie, so it must ride along with every
+  // request. It is not readable from JavaScript by design.
+  withCredentials: true,
 })
 
 export default api

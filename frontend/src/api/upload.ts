@@ -8,15 +8,78 @@ export interface UploadResponse {
   size: number
 }
 
+/** Longest edge, in pixels, that any uploaded image is scaled down to. */
+const MAX_DIMENSION = 1600
+/** WebP quality. 0.82 is visually indistinguishable for photos at this size. */
+const QUALITY = 0.82
+/** Formats we must not touch: GIF can be animated, SVG is already tiny vector. */
+const PASSTHROUGH = ['image/gif', 'image/svg+xml']
+
+/**
+ * Shrink an image in the browser before it is uploaded.
+ *
+ * Phone and camera images are routinely 1-5 MB, but nothing on the site displays
+ * them larger than ~1600px. Re-encoding here means the VPS stores ~80 KB instead
+ * of ~1.3 MB, with no server-side image library to install.
+ *
+ * Falls back to the original file on any failure - a slightly wasteful upload is
+ * far better than a broken one.
+ */
+export async function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith('image/') || PASSTHROUGH.includes(file.type)) {
+    return file
+  }
+
+  let bitmap: ImageBitmap
+  try {
+    // from-image applies EXIF rotation, so phone photos don't come out sideways.
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  } catch {
+    return file
+  }
+
+  try {
+    const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height))
+    const width = Math.round(bitmap.width * scale)
+    const height = Math.round(bitmap.height * scale)
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file
+
+    ctx.drawImage(bitmap, 0, 0, width, height)
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/webp', QUALITY)
+    })
+
+    // Bail out if the browser refused, or if re-encoding actually made it bigger
+    // (already-optimised small images can do this).
+    if (!blob || blob.size >= file.size) return file
+
+    const name = file.name.replace(/\.[^.]+$/, '') + '.webp'
+    return new File([blob], name, { type: 'image/webp', lastModified: Date.now() })
+  } catch {
+    return file
+  } finally {
+    bitmap.close()
+  }
+}
+
 export async function uploadImage(file: File): Promise<UploadResponse> {
+  const optimised = await compressImage(file)
+
   const formData = new FormData()
-  formData.append('image', file)
+  formData.append('image', optimised)
 
   const { data } = await api.post<UploadResponse>('/upload/image', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }
   })
-  
+
   return data
 }

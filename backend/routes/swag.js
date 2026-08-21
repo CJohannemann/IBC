@@ -1,4 +1,5 @@
 const express = require('express')
+const { deleteImageIfUnused } = require('../lib/imageCleanup')
 
 module.exports = (db, requireAdmin) => {
   const router = express.Router()
@@ -48,6 +49,8 @@ module.exports = (db, requireAdmin) => {
     try {
       const { title, description, price, image_path, sport, url } = req.body
 
+      const existing = await db.get('SELECT image_path FROM swag WHERE id = ?', req.params.id)
+
       const result = await db.run(
         `UPDATE swag
          SET title = ?, description = ?, price = ?, image_path = ?, sport = ?, url = ?
@@ -57,6 +60,11 @@ module.exports = (db, requireAdmin) => {
 
       if (result.changes === 0) {
         return res.status(404).json({ error: 'not_found' })
+      }
+
+      // Swapping or clearing the image orphans the old file - drop it.
+      if (existing && existing.image_path && existing.image_path !== (image_path || null)) {
+        await deleteImageIfUnused(db, existing.image_path)
       }
 
       res.json({ success: true, changes: result.changes })
@@ -69,10 +77,16 @@ module.exports = (db, requireAdmin) => {
   // DELETE swag item (admin only)
   router.delete('/:id', requireAdmin, async (req, res) => {
     try {
+      const existing = await db.get('SELECT image_path FROM swag WHERE id = ?', req.params.id)
+
       const result = await db.run('DELETE FROM swag WHERE id = ?', req.params.id)
-      
+
       if (result.changes === 0) {
         return res.status(404).json({ error: 'not_found' })
+      }
+
+      if (existing && existing.image_path) {
+        await deleteImageIfUnused(db, existing.image_path)
       }
 
       res.json({ success: true })

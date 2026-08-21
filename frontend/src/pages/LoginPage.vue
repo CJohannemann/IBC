@@ -45,10 +45,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 
 const username = ref('')
@@ -60,14 +61,15 @@ async function handleLogin() {
   error.value = ''
   loading.value = true
 
-  const success = await auth.login(username.value, password.value)
+  const result = await auth.login(username.value, password.value)
 
   loading.value = false
 
-  if (success) {
-    router.push('/admin/players')
+  if (result.ok) {
+    const redirect = route.query.redirect
+    router.push(typeof redirect === 'string' ? redirect : '/admin/players')
   } else {
-    error.value = 'Invalid username or password'
+    error.value = result.error ?? 'Invalid username or password'
   }
 }
 </script>

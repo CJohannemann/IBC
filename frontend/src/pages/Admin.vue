@@ -4,6 +4,17 @@
     <div class="w-full max-w-6xl">
       <div class="flex items-center justify-between mb-8">
         <h1 class="text-3xl font-black text-ibc-navy">Admin Dashboard</h1>
+        <div class="flex items-center gap-4 text-sm">
+          <span v-if="auth.user" class="text-slate-500">
+            Signed in as <span class="font-bold text-ibc-navy">{{ auth.user.username }}</span>
+          </span>
+          <router-link to="/admin/account" class="font-semibold text-ibc-blue hover:underline">
+            Account
+          </router-link>
+          <button @click="handleLogout" class="font-semibold text-red-600 hover:underline">
+            Log out
+          </button>
+        </div>
       </div>
 
       <!-- Players Section -->
@@ -1951,6 +1962,16 @@ import { createNews, updateNews, deleteNews, getNews, type NewNewsArticle, type 
 import { createSwag, updateSwag, deleteSwag, getSwag, type NewSwagItem, type SwagItem } from '@/api/swag'
 import { uploadTeamStats, getTeamStats, updateTeamRecord } from '@/api/stats'
 import { uploadImage } from '@/api/upload'
+import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
+
+const auth = useAuthStore()
+const adminRouter = useRouter()
+
+async function handleLogout() {
+  await auth.logout()
+  adminRouter.push('/admin/login')
+}
 import { usePlayerStore } from '@/stores/players'
 import { useSportStore } from '@/stores/sport'
 import { getCoaches, createCoach, updateCoach, deleteCoach, type Coach } from '@/api/coaches'

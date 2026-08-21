@@ -16,14 +16,21 @@ export const usePlayerStore = defineStore('players', () => {
     }
   }
 
-  async function fetchOne(number: number): Promise<Player | undefined> {
-    // Return from cache if available
-    const cached = players.value.find(p => p.player_number === number)
+  /**
+   * Jersey numbers repeat across teams, so a number alone does not identify a
+   * player. Pass the league when you know it; without one this can only return
+   * whichever player happens to be found first.
+   */
+  async function fetchOne(number: number, league?: string): Promise<Player | undefined> {
+    const matches = (p: Player) =>
+      p.player_number === number &&
+      (!league || (p.league || '').toLowerCase() === league.toLowerCase())
+
+    const cached = players.value.find(matches)
     if (cached) return cached
 
     try {
-      const player = await getPlayer(number)
-      return player
+      return await getPlayer(number, league)
     } catch {
       return undefined
     }

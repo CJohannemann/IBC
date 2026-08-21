@@ -21,8 +21,10 @@ export async function getPlayers(): Promise<Player[]> {
   return data
 }
 
-export async function getPlayer(number: number): Promise<Player> {
-  const { data } = await api.get(`/players/${number}`)
+export async function getPlayer(number: number, league?: string): Promise<Player> {
+  const { data } = await api.get(`/players/${number}`, {
+    params: league ? { league } : {},
+  })
   return data
 }
 

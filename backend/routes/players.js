@@ -45,12 +45,21 @@ module.exports = function createPlayerRoutes(db, requireAdmin) {
   // GET player by number
   router.get('/:number', async (req, res) => {
     try {
+      // A jersey number is not unique - the same number exists on more than one
+      // team - so an unfiltered lookup returns an arbitrary player. Callers that
+      // know the team should pass ?league=; without one this at least returns
+      // the same row every time rather than depending on row order.
+      const { league } = req.query
+
       const row = await db.get(`
         SELECT
           ${PLAYER_COLUMNS}
         FROM players
         WHERE player_number = ?
-      `, req.params.number)
+          ${league ? 'AND lower(league) = lower(?)' : ''}
+        ORDER BY id
+        LIMIT 1
+      `, league ? [req.params.number, league] : [req.params.number])
 
       if (!row)
         return res.status(404).json({ error: 'not_found' })

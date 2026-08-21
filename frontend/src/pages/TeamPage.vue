@@ -3,12 +3,9 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getTeam } from '@/api/teams'
 import { getTeamStats } from '@/api/stats'
-import { type Player } from '@/api/players'
-import { usePlayerStore } from '@/stores/players'
 import placeholderPlayer from '@/assets/placeholder-player.png'
 
 const route = useRoute()
-const playerStore = usePlayerStore()
 
 interface RosterPlayer {
   number: number
@@ -92,30 +89,11 @@ watch(ageGroup, (v) => loadTeam(v), { immediate: true })
 const selectedPlayer = ref<RosterPlayer | null>(null)
 const showPlayerModal = ref(false)
 
-function toRosterPlayer(p: Player): RosterPlayer {
-  return {
-    number: p.player_number,
-    first_name: p.first_name,
-    last_name: p.last_name,
-    name: `${p.first_name} ${p.last_name}`,
-    photo_path: p.photo_path,
-    favorite_food: p.favorite_food,
-    favorite_movie: p.favorite_movie,
-    bio: p.bio,
-  }
-}
-
-async function openPlayer(number: number) {
-  try {
-    const data = await playerStore.fetchOne(number)
-    if (data && data.player_number) {
-      selectedPlayer.value = toRosterPlayer(data)
-      showPlayerModal.value = true
-      return
-    }
-  } catch {
-    // fall back to local roster data
-  }
+function openPlayer(number: number) {
+  // Look the player up in this team's roster, not globally by jersey number:
+  // numbers repeat across teams, so #0 exists in both 10U and 14U. The roster
+  // came from /teams/:league and already carries everything the modal shows,
+  // so there is nothing to fetch.
   const local = (team.roster || []).find((p) => p.number === number)
   if (local) {
     selectedPlayer.value = local

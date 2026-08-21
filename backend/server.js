@@ -39,7 +39,9 @@ async function start() {
 
   // Idempotent (everything is CREATE ... IF NOT EXISTS), so the auth tables are
   // guaranteed to exist rather than failing at the first login attempt.
-  await db.exec(fs.readFileSync(path.join(__dirname, '..', 'database', 'users.sql'), 'utf8'))
+  for (const schema of ['users.sql', 'assistants.sql']) {
+    await db.exec(fs.readFileSync(path.join(__dirname, '..', 'database', schema), 'utf8'))
+  }
 
   const purged = await purgeExpired(db)
   if (purged) console.log(`Purged ${purged} expired session(s)`)

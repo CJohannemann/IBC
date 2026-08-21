@@ -3217,7 +3217,14 @@ async function openAddAssistantCoachModal() {
     addAssistantCoachMessage.value = ''
     showAddAssistantCoachModal.value = true
   } catch (err) {
+    // Open anyway and say what went wrong - a button that does nothing at all
+    // is indistinguishable from a broken page.
     console.error('Failed to load data:', err)
+    allCoaches.value = []
+    allAssistantCoaches.value = []
+    addAssistantCoachMessage.value = 'Could not load coaches. Please refresh and try again.'
+    addAssistantCoachMsgClass.value = 'bg-red-100 text-red-700'
+    showAddAssistantCoachModal.value = true
   }
 }
 
@@ -3275,6 +3282,11 @@ async function openEditAssistantCoachModal() {
     showEditAssistantCoachModal.value = true
   } catch (err) {
     console.error('Failed to load data:', err)
+    allCoaches.value = []
+    allAssistantCoaches.value = []
+    editAssistantCoachMessage.value = 'Could not load assistant coaches. Please refresh and try again.'
+    editAssistantCoachMsgClass.value = 'bg-red-100 text-red-700'
+    showEditAssistantCoachModal.value = true
   }
 }
 
@@ -3343,6 +3355,10 @@ async function openDeleteAssistantCoachModal() {
     showDeleteAssistantCoachModal.value = true
   } catch (err) {
     console.error('Failed to load assistant coaches:', err)
+    allAssistantCoaches.value = []
+    deleteAssistantCoachMessage.value = 'Could not load assistant coaches. Please refresh and try again.'
+    deleteAssistantCoachMsgClass.value = 'bg-red-100 text-red-700'
+    showDeleteAssistantCoachModal.value = true
   }
 }
 

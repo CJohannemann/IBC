@@ -121,3 +121,21 @@ have keep working with a real per-person credential.
 marks cookies `Secure`, and `CORS_ORIGIN` must name your domain — credentialed
 requests cannot use a wildcard origin, so cookie login will fail without it if
 the frontend is served from a different origin than the API.
+
+## reset-stats.js — clear statistics
+
+```bash
+node backend/scripts/reset-stats.js                        # dry run, lists what would go
+node backend/scripts/reset-stats.js --delete               # clear every season
+node backend/scripts/reset-stats.js --delete --league 10U  # just one team
+node backend/scripts/reset-stats.js --delete --season Fall --year 2026
+```
+
+Clears `batting_stats`, `pitching_stats` and `team_stats` only. Rosters,
+schedule, news, uniforms and accounts are untouched.
+
+It takes a backup before deleting anything, so a mistake is recoverable with the
+restore steps above. Dry run first — there is no undo beyond that backup.
+
+Note that `team_stats` holds both the CSV totals and the win/loss record you
+enter by hand, so clearing it resets the record too.

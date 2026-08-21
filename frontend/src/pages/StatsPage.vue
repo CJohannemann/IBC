@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import { computed, ref, onMounted } from 'vue'
-import { getBattingStats, getPitchingStats, getTeamStats } from '@/api/stats'
-import type { BattingStat, PitchingStat, TeamStat } from '@/api/stats'
+import { getBattingStats, getPitchingStats, getTeamStats, getSeasons } from '@/api/stats'
+import type { BattingStat, PitchingStat, TeamStat, Season } from '@/api/stats'
 
 interface BattingPlayer {
   id: string
@@ -44,14 +44,28 @@ const pitchingStatsData = ref<PitchingStat[]>([])
 const teamStatsData = ref<TeamStat[]>([])
 const loading = ref(true)
 
-// Fetch data from API on mount
-onMounted(async () => {
+const seasons = ref<Season[]>([])
+// '' means "whatever is current" - the server picks the newest season on file.
+const selectedSeason = ref('')
+
+/** Seasons are keyed by two values, so the dropdown uses one combined string. */
+function seasonKey(s: Season): string {
+  return `${s.season} ${s.year}`
+}
+
+function selectedParams(): { season?: string; year?: number } {
+  const match = seasons.value.find((s) => seasonKey(s) === selectedSeason.value)
+  return match ? { season: match.season, year: match.year } : {}
+}
+
+async function loadStats() {
   try {
     loading.value = true
+    const params = selectedParams()
     const [batting, pitching, teams] = await Promise.all([
-      getBattingStats(),
-      getPitchingStats(),
-      getTeamStats()
+      getBattingStats(params),
+      getPitchingStats(params),
+      getTeamStats(params)
     ])
     battingStatsData.value = batting
     pitchingStatsData.value = pitching
@@ -61,6 +75,18 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+onMounted(async () => {
+  try {
+    seasons.value = await getSeasons()
+    // Default to the newest season, which the endpoint returns first.
+    if (seasons.value.length) selectedSeason.value = seasonKey(seasons.value[0])
+  } catch (error) {
+    console.error('Failed to load seasons:', error)
+  }
+
+  await loadStats()
 })
 
 // Transform API data to component format - group by league
@@ -159,7 +185,19 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
         <span v-else-if="category === 'pitching'">Pitching Leaders</span>
         <span v-else>Team Stats</span>
       </h1>
-      <p class="text-slate-500 mb-12">Top performers across all age groups</p>
+      <p class="text-slate-500 mb-6">Top performers across all age groups</p>
+
+      <!-- Only worth showing once more than one season exists -->
+      <div v-if="seasons.length > 1" class="mb-12 flex items-center gap-3">
+        <label class="text-sm font-semibold text-ibc-navy">Season</label>
+        <select v-model="selectedSeason" @change="loadStats"
+          class="p-2 border rounded bg-white text-ibc-navy font-semibold">
+          <option v-for="s in seasons" :key="`${s.season}-${s.year}`" :value="`${s.season} ${s.year}`">
+            {{ s.season }} {{ s.year }}
+          </option>
+        </select>
+      </div>
+      <div v-else class="mb-12"></div>
 
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-12">

@@ -20,6 +20,8 @@ const createAdminRoutes = require('./routes/admin')
 const createUploadRoutes = require('./routes/upload')
 const createAuthRoutes = require('./routes/auth')
 const { purgeExpired } = require('./lib/sessions')
+const { normalizeIdentifiers } = require('./lib/normalize')
+const { runMigrations } = require('./lib/migrations')
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'database', 'baseball.db')
 const PORT = process.env.PORT || 3001
@@ -43,6 +45,9 @@ async function start() {
     await db.exec(fs.readFileSync(path.join(__dirname, '..', 'database', schema), 'utf8'))
   }
 
+  const migrated = await runMigrations(db)
+  for (const change of migrated) console.log(`Migrated: ${change}`)
+
   const purged = await purgeExpired(db)
   if (purged) console.log(`Purged ${purged} expired session(s)`)
 
@@ -65,6 +70,9 @@ async function start() {
     credentials: true,
   }))
   app.use(express.json())
+
+  // '10u', '10 U' and '10U' must not become three different teams.
+  app.use(normalizeIdentifiers)
 
   // Serve uploaded files statically
   app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')))

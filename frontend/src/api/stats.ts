@@ -49,17 +49,28 @@ export interface TeamStat {
   updated_at: string
 }
 
-export async function getBattingStats(params?: { league?: string; sport?: string; limit?: number }): Promise<BattingStat[]> {
+export interface Season {
+  season: string
+  year: number
+}
+
+/** Seasons that have stats on file, newest first. */
+export async function getSeasons(): Promise<Season[]> {
+  const { data } = await api.get('/stats/seasons')
+  return data
+}
+
+export async function getBattingStats(params?: { league?: string; sport?: string; limit?: number; season?: string; year?: number }): Promise<BattingStat[]> {
   const { data } = await api.get('/stats/batting', { params })
   return data
 }
 
-export async function getPitchingStats(params?: { league?: string; sport?: string; limit?: number }): Promise<PitchingStat[]> {
+export async function getPitchingStats(params?: { league?: string; sport?: string; limit?: number; season?: string; year?: number }): Promise<PitchingStat[]> {
   const { data } = await api.get('/stats/pitching', { params })
   return data
 }
 
-export async function getTeamStats(params?: { league?: string; sport?: string }): Promise<TeamStat[]> {
+export async function getTeamStats(params?: { league?: string; sport?: string; season?: string; year?: number }): Promise<TeamStat[]> {
   const { data } = await api.get('/stats/team', { params })
   return data
 }
@@ -68,6 +79,8 @@ export interface TeamRecord {
   league: string
   sport: string
   team_name?: string
+  season?: string
+  year?: number
   wins: number
   losses: number
   ties: number
@@ -78,11 +91,19 @@ export async function updateTeamRecord(record: TeamRecord): Promise<{ success: b
   return data
 }
 
-export async function uploadTeamStats(file: File, league: string, sport: string): Promise<{ success: boolean; batting: number; pitching: number; teams: number }> {
+export async function uploadTeamStats(
+  file: File,
+  league: string,
+  sport: string,
+  season: string,
+  year: number
+): Promise<{ success: boolean; batting: number; pitching: number; teams: number }> {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('league', league)
   formData.append('sport', sport)
+  formData.append('season', season)
+  formData.append('year', String(year))
 
   const { data } = await api.post('/stats/upload', formData, {
     headers: {

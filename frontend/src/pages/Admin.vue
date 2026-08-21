@@ -1485,7 +1485,22 @@
                     <option v-for="sp in sportStore.availableSports" :key="sp" :value="sp">{{ sp }}</option>
                   </select>
                 </div>
+                <div>
+                  <label class="block text-sm font-semibold">Season *</label>
+                  <select v-model="statsForm.season" class="mt-1 block w-full p-2 border rounded" required>
+                    <option v-for="s in seasonOptions" :key="s" :value="s">{{ s }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold">Year *</label>
+                  <input v-model.number="statsForm.year" type="number"
+                    class="mt-1 block w-full p-2 border rounded" required />
+                </div>
               </div>
+
+              <p class="text-xs text-slate-600 bg-slate-50 p-2 rounded">
+                Uploading replaces the stats for this league and season only. Other seasons are left alone.
+              </p>
 
               <div>
                 <label class="block text-sm font-semibold mb-2">Team Stats CSV File *</label>
@@ -1589,6 +1604,21 @@
                     class="mt-1 block w-full p-2 border rounded" required>
                     <option v-for="sp in sportStore.availableSports" :key="sp" :value="sp">{{ sp }}</option>
                   </select>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-semibold">Season *</label>
+                  <select v-model="recordForm.season" @change="loadExistingRecord"
+                    class="mt-1 block w-full p-2 border rounded" required>
+                    <option v-for="s in seasonOptions" :key="s" :value="s">{{ s }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold">Year *</label>
+                  <input v-model.number="recordForm.year" @change="loadExistingRecord" type="number"
+                    class="mt-1 block w-full p-2 border rounded" required />
                 </div>
               </div>
 
@@ -2847,7 +2877,11 @@ const availableTeams = ref<Team[]>([])
 
 const statsForm = reactive({
   league: '',
-  sport: 'Baseball'
+  sport: 'Baseball',
+  // Which season this upload belongs to. Uploading a new season no longer
+  // replaces the previous one, so this has to be right.
+  season: 'Fall',
+  year: new Date().getFullYear()
 })
 
 async function openStatsModal() {
@@ -2906,7 +2940,9 @@ async function submitStats() {
   statsMessage.value = ''
 
   try {
-    const result = await uploadTeamStats(statsFile.value, statsForm.league, statsForm.sport)
+    const result = await uploadTeamStats(
+      statsFile.value, statsForm.league, statsForm.sport, statsForm.season, statsForm.year
+    )
 
     if (result) {
       statsMessage.value = `Successfully uploaded! Batting: ${result.batting}, Pitching: ${result.pitching}, Teams: ${result.teams}`
@@ -2935,6 +2971,8 @@ const recordForm = reactive({
   league: '',
   sport: 'Baseball',
   team_name: '',
+  season: 'Fall',
+  year: new Date().getFullYear(),
   wins: 0,
   losses: 0,
   ties: 0
@@ -2967,7 +3005,12 @@ async function loadExistingRecord() {
   if (!recordForm.league) return
 
   try {
-    const stats = await getTeamStats({ league: recordForm.league, sport: recordForm.sport })
+    const stats = await getTeamStats({
+      league: recordForm.league,
+      sport: recordForm.sport,
+      season: recordForm.season,
+      year: recordForm.year,
+    })
     const existing = stats[0]
 
     recordForm.team_name = existing?.team_name || ''
@@ -2990,6 +3033,8 @@ async function submitRecord() {
       league: recordForm.league,
       sport: recordForm.sport,
       team_name: recordForm.team_name || undefined,
+      season: recordForm.season,
+      year: recordForm.year,
       wins: recordForm.wins || 0,
       losses: recordForm.losses || 0,
       ties: recordForm.ties || 0

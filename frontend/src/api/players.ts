@@ -38,7 +38,7 @@ export async function updatePlayer(id: number, player: Omit<Player, 'id'>): Prom
   return data
 }
 
-export async function deletePlayer(playerNumber: number): Promise<{ success: boolean }> {
-  const { data } = await api.delete(`/players/${playerNumber}`)
+export async function deletePlayer(id: number): Promise<{ success: boolean }> {
+  const { data } = await api.delete(`/players/${id}`)
   return data
 }

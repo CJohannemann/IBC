@@ -16,10 +16,12 @@ const PLAYER_COLUMNS = `
   sport
 `
 
+// Keyed on id, not player_number: jersey numbers repeat across teams and
+// seasons, so deleting by number removed every player wearing it.
 const DELETE_PLAYER = `
   DELETE
   FROM players
-  WHERE player_number = ?
+  WHERE id = ?
 `
 
 module.exports = function createPlayerRoutes(db, requireAdmin) {
@@ -202,15 +204,14 @@ module.exports = function createPlayerRoutes(db, requireAdmin) {
   })
 
   // DELETE player
-  router.delete('/:playerNumber', requireAdmin, async (req, res) => {
+  router.delete('/:id', requireAdmin, async (req, res) => {
     try {
-      // player_number can match several rows (multiple seasons) - collect them all.
       const existing = await db.all(
-        'SELECT photo_path FROM players WHERE player_number = ? AND photo_path IS NOT NULL',
-        req.params.playerNumber
+        'SELECT photo_path FROM players WHERE id = ? AND photo_path IS NOT NULL',
+        req.params.id
       )
 
-      const result = await db.run(DELETE_PLAYER, req.params.playerNumber)
+      const result = await db.run(DELETE_PLAYER, req.params.id)
 
       if (result.changes === 0) {
         return res.status(404).json({ error: 'Player not found' })

@@ -48,8 +48,8 @@ export const usePlayerStore = defineStore('players', () => {
     return result
   }
 
-  async function remove(playerNumber: number) {
-    const result = await deletePlayer(playerNumber)
+  async function remove(id: number) {
+    const result = await deletePlayer(id)
     await fetchAll()
     return result
   }

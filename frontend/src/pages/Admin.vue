@@ -379,8 +379,9 @@
               <label class="block text-sm font-semibold mb-1">Select Player</label>
               <select v-model="selectedDeletePlayerId" class="w-full border rounded p-2">
                 <option disabled value="">Choose a player</option>
-                <option v-for="player in playerStore.players" :key="player.id" :value="player.player_number">
+                <option v-for="player in playerStore.players" :key="player.id" :value="player.id">
                   #{{ player.player_number }} - {{ player.first_name }} {{ player.last_name }}
+                  <template v-if="player.league"> ({{ player.league }})</template>
                 </option>
               </select>
             </div>
@@ -2261,8 +2262,10 @@ const deleteMsgClass = ref('')
 
 const deletePlayerName = computed(() => {
   if (!selectedDeletePlayerId.value) return ''
-  const p = playerStore.players.find(p => p.player_number === selectedDeletePlayerId.value)
-  return p ? `#${p.player_number} ${p.first_name} ${p.last_name}` : ''
+  const p = playerStore.players.find(p => p.id === selectedDeletePlayerId.value)
+  if (!p) return ''
+  // Naming the team matters: the same number exists on more than one.
+  return `#${p.player_number} ${p.first_name} ${p.last_name}${p.league ? ' (' + p.league + ')' : ''}`
 })
 
 function resetModalForm() {

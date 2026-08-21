@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -24,7 +25,7 @@ const router = createRouter({
       component: () => import('@/pages/NewsPage.vue'),
     },
     {
-      path: '/sponsors',
+      path: '/swag',
       component: () => import('@/pages/SponsorsPage.vue'),
     },
     {
@@ -32,14 +33,29 @@ const router = createRouter({
       component: () => import('@/pages/PlayerProfilePage.vue'),
     },
     {
+      path: '/admin/login',
+      component: () => import('@/pages/LoginPage.vue'),
+    },
+    {
       path: '/admin',
       component: () => import('@/pages/AdminPage.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/admin/players',
       component: () => import('@/pages/Admin.vue'),
+      meta: { requiresAuth: true },
     },
   ],
+})
+
+router.beforeEach((to) => {
+  if (to.meta.requiresAuth) {
+    const auth = useAuthStore()
+    if (!auth.isAuthenticated) {
+      return '/admin/login'
+    }
+  }
 })
 
 export default router

@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { NavLink } from '@/types/nav'
+import { useSportStore } from '@/stores/sport'
 
 defineProps<{ links: NavLink[] }>()
 
+const sportStore = useSportStore()
 const openItem = ref<string | null>(null)
 const mobileOpen = ref(false)
+const sportDropdownOpen = ref(false)
 
 function closeAll() {
   openItem.value = null
+  sportDropdownOpen.value = false
+}
+
+function selectSport(sport: string) {
+  sportStore.setSport(sport)
+  sportDropdownOpen.value = false
 }
 </script>
 
@@ -21,9 +30,34 @@ function closeAll() {
       class="bg-ibc-navy border-t-[3px] border-ibc-red flex items-stretch min-h-[52px] px-8 relative z-50"
       @mouseleave="closeAll"
     >
-      <!-- Brand -->
-      <div class="text-white text-lg font-black tracking-wide flex items-center pr-7 mr-2 border-r border-white/20 whitespace-nowrap">
-        Baseball
+      <!-- Sport Selector -->
+      <div
+        class="relative text-white text-lg font-black tracking-wide flex items-center pr-7 mr-2 border-r border-white/20 whitespace-nowrap cursor-pointer select-none"
+        @click="sportDropdownOpen = !sportDropdownOpen"
+        @mouseleave="sportDropdownOpen = false"
+      >
+        {{ sportStore.activeSport }}
+        <span
+          class="ml-1.5 text-[10px] transition-transform duration-200 inline-block"
+          :class="sportDropdownOpen ? 'rotate-180' : ''"
+        >▼</span>
+
+        <div
+          v-show="sportDropdownOpen"
+          class="absolute top-full left-0 bg-ibc-navy border-t-[3px] border-ibc-red min-w-[160px] shadow-xl z-50"
+        >
+          <button
+            v-for="sport in sportStore.availableSports"
+            :key="sport"
+            class="block w-full text-left px-5 py-3 text-slate-200 text-[13px] font-semibold tracking-wide
+                   border-b border-white/[0.08] last:border-b-0
+                   hover:bg-ibc-blue hover:text-ibc-gold transition-colors"
+            :class="sport === sportStore.activeSport ? 'text-ibc-gold' : ''"
+            @click.stop="selectSport(sport)"
+          >
+            {{ sport }}
+          </button>
+        </div>
       </div>
 
       <!-- Desktop Links -->

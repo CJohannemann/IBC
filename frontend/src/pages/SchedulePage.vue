@@ -1,69 +1,25 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { getSchedule, type ScheduleEntry } from '@/api/schedule'
+import { useSportStore } from '@/stores/sport'
 
-interface Game {
-  id: string
-  team: string
-  time: string
-  location: string
-  address: string
-  city: string
-  state: string
-  zip: string
+const sportStore = useSportStore()
+
+const entries = ref<ScheduleEntry[]>([])
+
+async function loadSchedule() {
+  try {
+    entries.value = await getSchedule({ sport: sportStore.activeSport })
+  } catch (e) {
+    console.error('Failed to load schedule:', e)
+  }
 }
 
-// Mock game data - replace with API call
-const games: Record<string, Game[]> = {
-  '2026-07-04': [
-    {
-      id: '1',
-      team: '10U',
-      time: '6:30 PM',
-      location: 'Central Park Field',
-      address: '123 Main St',
-      city: 'Your City',
-      state: 'ST',
-      zip: '12345',
-    },
-  ],
-  '2026-07-11': [
-    {
-      id: '2',
-      team: '14U',
-      time: '7:00 PM',
-      location: 'Lincoln Field',
-      address: '456 Oak Ave',
-      city: 'Your City',
-      state: 'ST',
-      zip: '12345',
-    },
-    {
-      id: '3',
-      team: '10U',
-      time: '5:30 PM',
-      location: 'Central Park Field',
-      address: '123 Main St',
-      city: 'Your City',
-      state: 'ST',
-      zip: '12345',
-    },
-  ],
-  '2026-07-18': [
-    {
-      id: '4',
-      team: '14U',
-      time: '6:30 PM',
-      location: 'Lincoln Field',
-      address: '456 Oak Ave',
-      city: 'Your City',
-      state: 'ST',
-      zip: '12345',
-    },
-  ],
-}
+onMounted(loadSchedule)
+watch(() => sportStore.activeSport, loadSchedule)
 
-const currentDate = ref(new Date(2026, 6, 1)) // July 2026
-const selectedGame = ref<Game | null>(null)
+const currentDate = ref(new Date())
+const selectedEntry = ref<ScheduleEntry | null>(null)
 const showModal = ref(false)
 
 const monthYear = computed(() => {
@@ -80,7 +36,7 @@ const firstDayOfMonth = computed(() => {
 })
 
 const calendarDays = computed(() => {
-  const days = []
+  const days: (number | null)[] = []
   for (let i = 0; i < firstDayOfMonth.value; i++) {
     days.push(null)
   }
@@ -90,47 +46,73 @@ const calendarDays = computed(() => {
   return days
 })
 
-const getGamesForDay = (day: number | null) => {
+const getEntriesForDay = (day: number | null) => {
   if (!day) return []
   const dateStr = `${currentDate.value.getFullYear()}-${String(currentDate.value.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  return games[dateStr] || []
+  return entries.value.filter(e => e.date === dateStr)
 }
 
-const openGameDetails = (game: Game) => {
-  selectedGame.value = game
+const entryColor = (type: string) => {
+  return type === 'Practice' ? 'bg-blue-600' : 'bg-ibc-red'
+}
+
+const entryBorder = (type: string) => {
+  return type === 'Practice' ? 'border-blue-600' : 'border-ibc-red'
+}
+
+const openEntryDetails = (entry: ScheduleEntry) => {
+  selectedEntry.value = entry
   showModal.value = true
 }
 
 const closeModal = () => {
   showModal.value = false
-  selectedGame.value = null
+  selectedEntry.value = null
 }
 
 const previousMonth = () => {
-  currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() - 1)
+  currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() - 1, 1)
 }
 
 const nextMonth = () => {
-  currentDate.value = new Date(
-    currentDate.value.getFullYear(),
-    currentDate.value.getMonth() + 1,
-    1
-  )
+  currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 1)
 }
 
-const getAllGamesForMonth = computed(() => {
-  const allGames: Array<{ date: string; games: Game[] }> = []
-  const entries = Object.entries(games).sort()
-  for (const [date, gameList] of entries) {
-    allGames.push({ date, games: gameList })
+const entriesForMonth = computed(() => {
+  const year = currentDate.value.getFullYear()
+  const month = String(currentDate.value.getMonth() + 1).padStart(2, '0')
+  const prefix = `${year}-${month}`
+  return entries.value
+    .filter(e => e.date.startsWith(prefix))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+})
+
+const groupedByDate = computed(() => {
+  const groups: Array<{ date: string; entries: ScheduleEntry[] }> = []
+  let currentGroup: { date: string; entries: ScheduleEntry[] } | null = null
+
+  for (const entry of entriesForMonth.value) {
+    if (!currentGroup || currentGroup.date !== entry.date) {
+      currentGroup = { date: entry.date, entries: [] }
+      groups.push(currentGroup)
+    }
+    currentGroup.entries.push(entry)
   }
-  return allGames
+  return groups
 })
 
 const formatDateForList = (dateStr: string) => {
   const [year, month, day] = dateStr.split('-')
   const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+const formatTime = (time: string) => {
+  const [h, m] = time.split(':')
+  const hour = parseInt(h)
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
+  return `${displayHour}:${m} ${ampm}`
 }
 </script>
 
@@ -180,15 +162,16 @@ const formatDateForList = (dateStr: string) => {
           >
             <div v-if="day" class="text-sm font-bold text-ibc-navy mb-1">{{ day }}</div>
 
-            <!-- Games for this day -->
+            <!-- Entries for this day -->
             <div v-if="day" class="space-y-1">
               <button
-                v-for="game in getGamesForDay(day)"
-                :key="game.id"
-                @click="openGameDetails(game)"
-                class="block w-full text-left text-xs bg-ibc-red text-white p-1.5 rounded hover:bg-ibc-gold transition cursor-pointer font-semibold truncate"
+                v-for="entry in getEntriesForDay(day)"
+                :key="entry.id"
+                @click="openEntryDetails(entry)"
+                class="block w-full text-left text-xs text-white p-1.5 rounded hover:opacity-80 transition cursor-pointer font-semibold truncate"
+                :class="entryColor(entry.type)"
               >
-                {{ game.team }} - {{ game.time }}
+                {{ entry.league }} - {{ formatTime(entry.time) }}
               </button>
             </div>
           </div>
@@ -196,12 +179,12 @@ const formatDateForList = (dateStr: string) => {
 
         <!-- MOBILE: List View -->
         <div class="md:hidden space-y-3">
-          <div v-if="getAllGamesForMonth.length === 0" class="text-center text-slate-500 py-8">
-            <p>No games scheduled for this month</p>
+          <div v-if="groupedByDate.length === 0" class="text-center text-slate-500 py-8">
+            <p>No events scheduled for this month</p>
           </div>
 
           <div
-            v-for="dayGroup in getAllGamesForMonth"
+            v-for="dayGroup in groupedByDate"
             :key="dayGroup.date"
             class="space-y-2"
           >
@@ -210,17 +193,18 @@ const formatDateForList = (dateStr: string) => {
               {{ formatDateForList(dayGroup.date) }}
             </div>
 
-            <!-- Games for this date -->
+            <!-- Entries for this date -->
             <button
-              v-for="game in dayGroup.games"
-              :key="game.id"
-              @click="openGameDetails(game)"
-              class="w-full flex items-center justify-between bg-white border-l-4 border-ibc-red p-4 rounded hover:shadow-lg transition cursor-pointer"
+              v-for="entry in dayGroup.entries"
+              :key="entry.id"
+              @click="openEntryDetails(entry)"
+              class="w-full flex items-center justify-between bg-white border-l-4 p-4 rounded hover:shadow-lg transition cursor-pointer"
+              :class="entryBorder(entry.type)"
             >
               <div class="text-left">
-                <div class="font-bold text-ibc-navy">{{ game.team }} Team</div>
-                <div class="text-sm text-slate-600">{{ game.time }}</div>
-                <div class="text-xs text-slate-500">{{ game.location }}</div>
+                <div class="font-bold text-ibc-navy">{{ entry.league }} {{ entry.type }}</div>
+                <div class="text-sm text-slate-600">{{ formatTime(entry.time) }}</div>
+                <div class="text-xs text-slate-500">{{ entry.location || 'TBD' }}</div>
               </div>
               <div class="text-ibc-red text-xl">→</div>
             </button>
@@ -229,7 +213,7 @@ const formatDateForList = (dateStr: string) => {
       </div>
     </div>
 
-    <!-- Game Details Modal -->
+    <!-- Entry Details Modal -->
     <Teleport to="body">
       <div
         v-if="showModal"
@@ -242,8 +226,8 @@ const formatDateForList = (dateStr: string) => {
         >
           <div class="flex items-start justify-between mb-6">
             <div>
-              <h3 class="text-2xl font-black text-ibc-navy">{{ selectedGame?.team }} Game</h3>
-              <p class="text-ibc-red font-bold">{{ selectedGame?.time }}</p>
+              <h3 class="text-2xl font-black text-ibc-navy">{{ selectedEntry?.league }} {{ selectedEntry?.type }}</h3>
+              <p class="text-ibc-red font-bold">{{ selectedEntry ? formatTime(selectedEntry.time) : '' }}</p>
             </div>
             <button
               @click="closeModal"
@@ -253,32 +237,50 @@ const formatDateForList = (dateStr: string) => {
             </button>
           </div>
 
-          <!-- Address Card -->
-          <div class="bg-ibc-navy text-white p-6 rounded-lg mb-6">
-            <h4 class="font-bold text-lg mb-3">{{ selectedGame?.location }}</h4>
-            <div class="space-y-1 text-sm mb-6 pb-6 border-b border-white/20">
-              <p>{{ selectedGame?.address }}</p>
-              <p>{{ selectedGame?.city }}, {{ selectedGame?.state }} {{ selectedGame?.zip }}</p>
+          <div class="space-y-4">
+            <div v-if="selectedEntry?.opponent" class="flex items-center gap-2">
+              <span class="text-sm font-bold text-slate-500 uppercase w-20">vs</span>
+              <span class="font-semibold text-ibc-navy">{{ selectedEntry.opponent }}</span>
+              <span v-if="selectedEntry.home_away" class="text-xs bg-slate-100 px-2 py-0.5 rounded">
+                {{ selectedEntry.home_away }}
+              </span>
+            </div>
+
+            <div v-if="selectedEntry?.location" class="flex items-start gap-2">
+              <span class="text-sm font-bold text-slate-500 uppercase w-20">Where</span>
+              <span class="text-ibc-navy">{{ selectedEntry.location }}</span>
+            </div>
+
+            <div v-if="selectedEntry?.notes" class="flex items-start gap-2">
+              <span class="text-sm font-bold text-slate-500 uppercase w-20">Notes</span>
+              <span class="text-slate-700">{{ selectedEntry.notes }}</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-bold text-slate-500 uppercase w-20">Type</span>
+              <span
+                class="text-xs text-white px-2 py-0.5 rounded font-bold"
+                :class="selectedEntry ? entryColor(selectedEntry.type) : ''"
+              >
+                {{ selectedEntry?.type }}
+              </span>
             </div>
 
             <!-- Uniform Section -->
-            <div>
-              <h5 class="font-bold text-sm uppercase tracking-wide mb-3">Uniform</h5>
-              <div class="space-y-2 text-sm">
-                <div class="flex items-center">
-                  <span class="w-20">Shirt</span>
-                  <div class="w-5 h-5 bg-blue-500 rounded border border-white/30"></div>
-                  <span class="ml-2">Blue</span>
+            <div v-if="selectedEntry?.jersey_color || selectedEntry?.pants_color || selectedEntry?.hat_color" class="border-t pt-4 mt-4">
+              <h4 class="text-sm font-bold text-ibc-navy uppercase mb-3">Uniform</h4>
+              <div class="space-y-2">
+                <div v-if="selectedEntry.jersey_color" class="flex items-center gap-3">
+                  <span class="text-sm text-slate-600 w-16">Jersey</span>
+                  <span class="font-semibold text-ibc-navy">{{ selectedEntry.jersey_color }}</span>
                 </div>
-                <div class="flex items-center">
-                  <span class="w-20">Pants</span>
-                  <div class="w-5 h-5 bg-white rounded border border-white/30"></div>
-                  <span class="ml-2">White</span>
+                <div v-if="selectedEntry.pants_color" class="flex items-center gap-3">
+                  <span class="text-sm text-slate-600 w-16">Pants</span>
+                  <span class="font-semibold text-ibc-navy">{{ selectedEntry.pants_color }}</span>
                 </div>
-                <div class="flex items-center">
-                  <span class="w-20">Hat</span>
-                  <div class="w-5 h-5 bg-ibc-red rounded border border-white/30"></div>
-                  <span class="ml-2">Red</span>
+                <div v-if="selectedEntry.hat_color" class="flex items-center gap-3">
+                  <span class="text-sm text-slate-600 w-16">Hat</span>
+                  <span class="font-semibold text-ibc-navy">{{ selectedEntry.hat_color }}</span>
                 </div>
               </div>
             </div>
@@ -286,7 +288,7 @@ const formatDateForList = (dateStr: string) => {
 
           <button
             @click="closeModal"
-            class="w-full bg-ibc-red text-white font-bold py-2 rounded hover:bg-ibc-gold transition"
+            class="w-full mt-6 bg-ibc-red text-white font-bold py-2 rounded hover:bg-ibc-gold transition"
           >
             Close
           </button>

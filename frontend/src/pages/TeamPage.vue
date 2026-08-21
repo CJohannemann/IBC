@@ -1,14 +1,29 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { getTeam } from '@/api/teams'
+import { type Player } from '@/api/players'
+import { usePlayerStore } from '@/stores/players'
 
 const route = useRoute()
+const playerStore = usePlayerStore()
+
+interface RosterPlayer {
+  number: number
+  first_name: string
+  last_name: string
+  name: string
+  photo_path: string
+  favorite_food: string
+  favorite_movie: string
+  bio: string
+}
 
 const team = reactive({
   name: '',
   ageGroup: '',
   headCoach: null as string | null,
-  roster: [] as Array<any>,
+  roster: [] as RosterPlayer[],
   wins: 0,
   losses: 0,
 })
@@ -17,24 +32,13 @@ const ageGroup = computed(() => (route.params.ageGroup as string || '10u').toLow
 
 async function loadTeam(league: string) {
   try {
-    console.log("Loading Team:", league)
-    //const res = await fetch(`/api/teams/${league}`)
-    const apiUrl = `/api/teams/${league}`
-console.log("Calling API:", apiUrl)
-
-const res = await fetch(apiUrl)
-
-console.log("Response status:", res.status)
-const data = await res.json()
-console.log("API data:", data)
-    if (!res.ok) throw new Error('failed')
+    const data = await getTeam(league)
 
     const leagueName = (data.league || league).toString()
     team.name = `${leagueName.toUpperCase()} Team`
     team.ageGroup = leagueName
     team.headCoach = data.headCoach || null
-    // map players to expected UI shape
-    team.roster = (data.players || []).map((p: any) => ({
+    team.roster = (data.players || []).map((p) => ({
       number: p.player_number,
       first_name: p.first_name,
       last_name: p.last_name,
@@ -46,7 +50,6 @@ console.log("API data:", data)
     }))
   } catch (e) {
     console.error('Failed to load team:', e)
-    // clear to fallback
     team.name = `${league.toUpperCase()} Team`
     team.ageGroup = league
     team.headCoach = null
@@ -56,29 +59,24 @@ console.log("API data:", data)
 
 watch(ageGroup, (v) => loadTeam(v), { immediate: true })
 
-const selectedPlayer = ref<any | null>(null)
+const selectedPlayer = ref<Player | RosterPlayer | null>(null)
 const showPlayerModal = ref(false)
 
 async function openPlayer(number: number) {
-  // Try fetching from API first
   try {
-   const res = await fetch(`/api/players/${number}`)
-   if (res.ok) {
-     const data = await res.json()
-     if (data && data.player_number) {
-       selectedPlayer.value = data
-       showPlayerModal.value = true
-       return
-     }
-   }
-  } catch (e) {
-   // ignore, fall back to local
+    const data = await playerStore.fetchOne(number)
+    if (data && data.player_number) {
+      selectedPlayer.value = data
+      showPlayerModal.value = true
+      return
+    }
+  } catch {
+    // fall back to local roster data
   }
-  // Fallback to local roster data
-  const local = (team.roster || []).find((p: any) => p.number === number)
+  const local = (team.roster || []).find((p) => p.number === number)
   if (local) {
-   selectedPlayer.value = local
-   showPlayerModal.value = true
+    selectedPlayer.value = local
+    showPlayerModal.value = true
   }
 }
 

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { getBattingStats, getPitchingStats, getTeamStats } from '@/api/stats'
+import type { BattingStat, PitchingStat, TeamStat } from '@/api/stats'
 
 interface BattingPlayer {
   id: string
@@ -36,181 +38,104 @@ interface TeamPitchingStats {
 
 const route = useRoute()
 
-// Mock batting stats data - replace with API call
-const battingData: TeamBattingStats[] = [
-  {
-    name: '10U Team',
-    ageGroup: '10U',
-    players: [
-      {
-        id: '1',
-        name: 'Alex Johnson',
-        battingAverage: 0.450,
-        hits: 18,
-        atBats: 40,
-        homeRuns: 2,
-        rbis: 12,
-      },
-      {
-        id: '2',
-        name: 'Jordan Smith',
-        battingAverage: 0.400,
-        hits: 16,
-        atBats: 40,
-        homeRuns: 1,
-        rbis: 10,
-      },
-      {
-        id: '3',
-        name: 'Casey Williams',
-        battingAverage: 0.375,
-        hits: 15,
-        atBats: 40,
-        homeRuns: 0,
-        rbis: 8,
-      },
-      {
-        id: '4',
-        name: 'Morgan Brown',
-        battingAverage: 0.350,
-        hits: 14,
-        atBats: 40,
-        homeRuns: 1,
-        rbis: 9,
-      },
-    ],
-  },
-  {
-    name: '14U Team',
-    ageGroup: '14U',
-    players: [
-      {
-        id: '5',
-        name: 'Tyler Davis',
-        battingAverage: 0.480,
-        hits: 24,
-        atBats: 50,
-        homeRuns: 4,
-        rbis: 18,
-      },
-      {
-        id: '6',
-        name: 'Marcus Wilson',
-        battingAverage: 0.420,
-        hits: 21,
-        atBats: 50,
-        homeRuns: 3,
-        rbis: 15,
-      },
-      {
-        id: '7',
-        name: 'Jackson Martinez',
-        battingAverage: 0.400,
-        hits: 20,
-        atBats: 50,
-        homeRuns: 2,
-        rbis: 14,
-      },
-      {
-        id: '8',
-        name: 'Ryan Garcia',
-        battingAverage: 0.360,
-        hits: 18,
-        atBats: 50,
-        homeRuns: 1,
-        rbis: 12,
-      },
-    ],
-  },
-]
+// Reactive data from API
+const battingStatsData = ref<BattingStat[]>([])
+const pitchingStatsData = ref<PitchingStat[]>([])
+const teamStatsData = ref<TeamStat[]>([])
+const loading = ref(true)
 
-// Mock pitching stats data - replace with API call
-const pitchingData: TeamPitchingStats[] = [
-  {
-    name: '10U Team',
-    ageGroup: '10U',
-    pitchers: [
-      {
-        id: '101',
-        name: 'Emma Davis',
-        era: 1.50,
-        strikePercentage: 0.68,
-        walks: 8,
-        strikeouts: 45,
-        inningsPitched: 36,
-      },
-      {
-        id: '102',
-        name: 'Sofia Rodriguez',
-        era: 2.10,
-        strikePercentage: 0.62,
-        walks: 12,
-        strikeouts: 38,
-        inningsPitched: 32,
-      },
-      {
-        id: '103',
-        name: 'Olivia Chen',
-        era: 2.80,
-        strikePercentage: 0.58,
-        walks: 14,
-        strikeouts: 30,
-        inningsPitched: 28,
-      },
-      {
-        id: '104',
-        name: 'Madison Taylor',
-        era: 3.25,
-        strikePercentage: 0.54,
-        walks: 18,
-        strikeouts: 25,
-        inningsPitched: 24,
-      },
-    ],
-  },
-  {
-    name: '14U Team',
-    ageGroup: '14U',
-    pitchers: [
-      {
-        id: '105',
-        name: 'Jacob Anderson',
-        era: 1.25,
-        strikePercentage: 0.72,
-        walks: 6,
-        strikeouts: 72,
-        inningsPitched: 48,
-      },
-      {
-        id: '106',
-        name: 'Brandon Lee',
-        era: 1.95,
-        strikePercentage: 0.68,
-        walks: 10,
-        strikeouts: 58,
-        inningsPitched: 44,
-      },
-      {
-        id: '107',
-        name: 'Christopher White',
-        era: 2.40,
-        strikePercentage: 0.65,
-        walks: 13,
-        strikeouts: 52,
-        inningsPitched: 40,
-      },
-      {
-        id: '108',
-        name: 'Nathan Harris',
-        era: 3.10,
-        strikePercentage: 0.60,
-        walks: 16,
-        strikeouts: 40,
-        inningsPitched: 32,
-      },
-    ],
-  },
-]
+// Fetch data from API on mount
+onMounted(async () => {
+  try {
+    loading.value = true
+    const [batting, pitching, teams] = await Promise.all([
+      getBattingStats(),
+      getPitchingStats(),
+      getTeamStats()
+    ])
+    battingStatsData.value = batting
+    pitchingStatsData.value = pitching
+    teamStatsData.value = teams
+  } catch (error) {
+    console.error('Failed to load stats:', error)
+  } finally {
+    loading.value = false
+  }
+})
+
+// Transform API data to component format - group by league
+const battingData = computed<TeamBattingStats[]>(() => {
+  const grouped = new Map<string, BattingPlayer[]>()
+  
+  battingStatsData.value.forEach(stat => {
+    const league = stat.league || 'Unknown'
+    if (!grouped.has(league)) {
+      grouped.set(league, [])
+    }
+    
+    grouped.get(league)!.push({
+      id: stat.id.toString(),
+      name: stat.player_name,
+      battingAverage: stat.avg || 0,
+      hits: stat.hits || 0,
+      atBats: stat.at_bats || 0,
+      homeRuns: stat.home_runs || 0,
+      rbis: stat.rbis || 0
+    })
+  })
+  
+  // Sort players by batting average within each league
+  const result: TeamBattingStats[] = []
+  grouped.forEach((players, league) => {
+    players.sort((a, b) => b.battingAverage - a.battingAverage)
+    result.push({
+      name: `${league} Team`,
+      ageGroup: league,
+      players: players
+    })
+  })
+  
+  return result.sort((a, b) => a.ageGroup.localeCompare(b.ageGroup))
+})
+
+const pitchingData = computed<TeamPitchingStats[]>(() => {
+  const grouped = new Map<string, PitchingPlayer[]>()
+  
+  pitchingStatsData.value.forEach(stat => {
+    const league = stat.league || 'Unknown'
+    if (!grouped.has(league)) {
+      grouped.set(league, [])
+    }
+    
+    // Calculate strike percentage (strikeouts / total batters faced) - approximation
+    const strikePercentage = stat.innings_pitched && stat.strikeouts
+      ? Math.min(stat.strikeouts / (stat.innings_pitched * 3), 1)  // Rough estimate, cap at 100%
+      : 0
+    
+    grouped.get(league)!.push({
+      id: stat.id.toString(),
+      name: stat.player_name,
+      era: stat.era || 0,
+      strikePercentage,
+      walks: stat.walks || 0,
+      strikeouts: stat.strikeouts || 0,
+      inningsPitched: stat.innings_pitched || 0
+    })
+  })
+  
+  // Sort pitchers by ERA (lowest first) within each league
+  const result: TeamPitchingStats[] = []
+  grouped.forEach((pitchers, league) => {
+    pitchers.sort((a, b) => a.era - b.era)
+    result.push({
+      name: `${league} Team`,
+      ageGroup: league,
+      pitchers: pitchers
+    })
+  })
+  
+  return result.sort((a, b) => a.ageGroup.localeCompare(b.ageGroup))
+})
 
 const category = computed(() => (route.params.category as string).toLowerCase())
 
@@ -234,8 +159,19 @@ const getTopPitchingLeaders = (team: TeamPitchingStats) => {
       </h1>
       <p class="text-slate-500 mb-12">Top performers across all age groups</p>
 
+      <!-- Loading State -->
+      <div v-if="loading" class="text-center py-12">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-ibc-red"></div>
+        <p class="mt-4 text-slate-600">Loading stats...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="battingData.length === 0 && pitchingData.length === 0" class="text-center py-12">
+        <p class="text-slate-600">No stats available. Upload CSV files in the admin panel.</p>
+      </div>
+
       <!-- Team Tables -->
-      <div v-if="category === 'batting'" class="space-y-12">
+      <div v-else-if="category === 'batting'" class="space-y-12">
         <div
           v-for="team in battingData"
           :key="team.ageGroup"
@@ -360,6 +296,82 @@ const getTopPitchingLeaders = (team: TeamPitchingStats) => {
                   </td>
                   <td class="px-6 py-4 text-sm font-semibold text-center text-ibc-navy">
                     {{ pitcher.inningsPitched }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Team Stats -->
+      <div v-else-if="category === 'team'" class="space-y-12">
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+          <!-- Header -->
+          <div class="bg-ibc-navy text-white px-8 py-4">
+            <h2 class="text-2xl font-black uppercase tracking-wider">Team Standings</h2>
+          </div>
+
+          <!-- Team Stats Table -->
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    League
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    Team
+                  </th>
+                  <th class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    W
+                  </th>
+                  <th class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    L
+                  </th>
+                  <th class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    T
+                  </th>
+                  <th class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    Runs Scored
+                  </th>
+                  <th class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    Runs Allowed
+                  </th>
+                  <th class="px-6 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    Run Diff
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-slate-200">
+                <tr
+                  v-for="team in teamStatsData"
+                  :key="team.id"
+                  class="hover:bg-slate-50 transition"
+                >
+                  <td class="px-6 py-4 text-sm font-semibold text-ibc-navy">{{ team.league }}</td>
+                  <td class="px-6 py-4 text-sm font-bold text-ibc-navy">{{ team.team_name }}</td>
+                  <td class="px-6 py-4 text-sm text-center font-semibold text-green-600">
+                    {{ team.wins }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center font-semibold text-red-600">
+                    {{ team.losses }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center text-slate-700">
+                    {{ team.ties }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center font-semibold text-ibc-navy">
+                    {{ team.runs_scored }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center text-slate-700">
+                    {{ team.runs_allowed }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center font-bold" :class="{
+                    'text-green-600': (team.runs_scored - team.runs_allowed) > 0,
+                    'text-red-600': (team.runs_scored - team.runs_allowed) < 0,
+                    'text-slate-600': (team.runs_scored - team.runs_allowed) === 0
+                  }">
+                    {{ team.runs_scored - team.runs_allowed > 0 ? '+' : '' }}{{ team.runs_scored - team.runs_allowed }}
                   </td>
                 </tr>
               </tbody>

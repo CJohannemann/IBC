@@ -2,22 +2,30 @@
 import AppHeader from '@/components/AppHeader.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
 import type { NavLink } from '@/types/nav'
+import { getTeams } from '@/api/teams'
+import { useSportStore } from '@/stores/sport'
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
+const sportStore = useSportStore()
 const teams = ref<Array<{ league: string; slug: string }>>([])
 
-onMounted(async () => {
+async function loadTeams() {
   try {
-    const res = await fetch('/api/teams')
-    if (res.ok) {
-      const data = await res.json()
-      teams.value = (data || []).map((t: any) => ({ league: String(t.league), slug: String(t.league).toLowerCase() }))
-    }
+    const data = await getTeams(sportStore.activeSport)
+    teams.value = (data || []).map((t) => ({ league: String(t.league), slug: String(t.league).toLowerCase() }))
   } catch (e) {
     console.error('Failed to load teams for nav:', e)
   }
+}
+
+onMounted(async () => {
+  await sportStore.fetchSports()
+  await loadTeams()
 })
+
+// Reload teams when sport changes
+watch(() => sportStore.activeSport, () => loadTeams())
 
 const navLinks = computed<NavLink[]>(() => {
   const teamChildren = teams.value.length
@@ -39,7 +47,7 @@ const navLinks = computed<NavLink[]>(() => {
       ],
     },
     { label: 'News', to: '/news' },
-    { label: 'Sponsors', to: '/sponsors' },
+    { label: 'Swag', to: '/swag' },
     { label: '__spacer__' },
   ]
 })

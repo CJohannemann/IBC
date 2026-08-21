@@ -21,7 +21,7 @@ const crypto = require('crypto')
 const sqlite = require('sqlite')
 const sqlite3 = require('sqlite3')
 
-const { hashPassword } = require('../lib/passwords')
+const { hashPassword, generatePassword, MIN_PASSWORD_LENGTH } = require('../lib/passwords')
 const { destroyUserSessions } = require('../lib/sessions')
 
 const REPO_ROOT = path.join(__dirname, '..', '..')
@@ -44,14 +44,6 @@ function parseFlags(argv) {
   }
 
   return { flags, positional }
-}
-
-/** ~90 bits of entropy, no ambiguous characters. */
-function generatePassword() {
-  const alphabet = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  return Array.from(crypto.randomBytes(16))
-    .map((b) => alphabet[b % alphabet.length])
-    .join('')
 }
 
 async function findUser(db, username) {
@@ -109,8 +101,8 @@ const commands = {
     }
 
     const password = flags.password || generatePassword()
-    if (password.length < 12) {
-      console.error('password must be at least 12 characters')
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      console.error(`password must be at least ${MIN_PASSWORD_LENGTH} characters`)
       process.exit(1)
     }
 
@@ -130,8 +122,8 @@ const commands = {
     const user = await requireUser(db, username)
 
     const password = flags.password || generatePassword()
-    if (password.length < 12) {
-      console.error('password must be at least 12 characters')
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      console.error(`password must be at least ${MIN_PASSWORD_LENGTH} characters`)
       process.exit(1)
     }
 

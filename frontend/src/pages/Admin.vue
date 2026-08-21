@@ -8,6 +8,10 @@
           <span v-if="auth.user" class="text-slate-500">
             Signed in as <span class="font-bold text-ibc-navy">{{ auth.user.username }}</span>
           </span>
+          <router-link v-if="auth.isAdmin" to="/admin/users"
+            class="font-semibold text-ibc-blue hover:underline">
+            Accounts
+          </router-link>
           <router-link to="/admin/account" class="font-semibold text-ibc-blue hover:underline">
             Account
           </router-link>

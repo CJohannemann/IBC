@@ -59,4 +59,19 @@ async function verifyPassword(password, stored) {
   }
 }
 
-module.exports = { hashPassword, verifyPassword }
+/**
+ * A random password to hand to a new user. ~90 bits of entropy, with the
+ * characters people misread (0/O, 1/l/I) left out so it survives being written
+ * on paper or read aloud.
+ */
+function generatePassword() {
+  const alphabet = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  return Array.from(crypto.randomBytes(16))
+    .map((b) => alphabet[b % alphabet.length])
+    .join('')
+}
+
+/** Shared by the API and the CLI so both enforce the same floor. */
+const MIN_PASSWORD_LENGTH = 12
+
+module.exports = { hashPassword, verifyPassword, generatePassword, MIN_PASSWORD_LENGTH }

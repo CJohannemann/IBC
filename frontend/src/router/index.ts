@@ -51,6 +51,11 @@ const router = createRouter({
       component: () => import('@/pages/AccountPage.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin/users',
+      component: () => import('@/pages/UsersPage.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
   ],
 })
 
@@ -63,6 +68,12 @@ router.beforeEach(async (to) => {
 
   if (!auth.isAuthenticated) {
     return { path: '/admin/login', query: { redirect: to.fullPath } }
+  }
+
+  // Editors get sent back rather than shown a page they cannot use. The API
+  // enforces this too - hiding a route is presentation, not security.
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return '/admin/players'
   }
 })
 

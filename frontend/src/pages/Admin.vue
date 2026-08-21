@@ -684,7 +684,7 @@
                   placeholder="e.g., Bring extra water"></textarea>
               </div>
 
-              <div class="border-t pt-4 mt-4">
+              <div v-if="scheduleForm.type === 'Game'" class="border-t pt-4 mt-4">
                 <label class="block text-sm font-semibold mb-3">Uniform</label>
 
                 <div v-if="uniforms.length" class="grid grid-cols-3 gap-3 mb-4">
@@ -847,7 +847,7 @@
                   placeholder="e.g., Bring extra water"></textarea>
               </div>
 
-              <div class="border-t pt-4 mt-4">
+              <div v-if="editScheduleForm.type === 'Game'" class="border-t pt-4 mt-4">
                 <label class="block text-sm font-semibold mb-3">Uniform</label>
 
                 <div v-if="uniforms.length" class="grid grid-cols-3 gap-3 mb-4">
@@ -2087,7 +2087,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted, watch } from 'vue'
 import { type Player } from '@/api/players'
 import { createScheduleEntry, updateScheduleEntry, deleteScheduleEntry, getSchedule, type NewScheduleEntry, type ScheduleEntry } from '@/api/schedule'
 import { createNews, updateNews, deleteNews, getNews, type NewNewsArticle, type NewsArticle } from '@/api/news'
@@ -2382,6 +2382,7 @@ function openScheduleModal() {
   scheduleForm.notes = null
   scheduleForm.season = null
   scheduleForm.year = new Date().getFullYear()
+  scheduleForm.uniform_id = null
   scheduleForm.jersey_color = null
   scheduleForm.pants_color = null
   scheduleForm.hat_color = null
@@ -2436,6 +2437,23 @@ const editScheduleForm = reactive<NewScheduleEntry>({
   pants_color: null,
   hat_color: null
 })
+
+/**
+ * Switching an entry to Practice hides the uniform section, so anything already
+ * chosen has to be cleared - otherwise a hidden selection would still be saved
+ * and would surface again if the entry were switched back to a Game.
+ */
+function clearUniformForPractice(form: NewScheduleEntry) {
+  if (form.type === 'Practice') {
+    form.uniform_id = null
+    form.jersey_color = null
+    form.pants_color = null
+    form.hat_color = null
+  }
+}
+
+watch(() => scheduleForm.type, () => clearUniformForPractice(scheduleForm))
+watch(() => editScheduleForm.type, () => clearUniformForPractice(editScheduleForm))
 
 async function openEditScheduleModal() {
   loadUniforms()

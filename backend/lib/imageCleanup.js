@@ -7,6 +7,7 @@ const IMAGE_REFERENCES = [
   { table: 'news', column: 'image_path' },
   { table: 'swag', column: 'image_path' },
   { table: 'players', column: 'photo_path' },
+  { table: 'uniform', column: 'image_path' },
 ]
 
 const UPLOADS_DIR = path.join(__dirname, '..', 'public', 'uploads', 'news')

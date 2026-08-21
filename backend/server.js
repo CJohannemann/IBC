@@ -18,6 +18,7 @@ const createScheduleRoutes = require('./routes/schedule')
 const createStatsRoutes = require('./routes/stats')
 const createAdminRoutes = require('./routes/admin')
 const createUploadRoutes = require('./routes/upload')
+const createUniformRoutes = require('./routes/uniform')
 const createAuthRoutes = require('./routes/auth')
 const createUserRoutes = require('./routes/users')
 const { requireRole } = require('./middleware/requireAdmin')
@@ -43,7 +44,7 @@ async function start() {
 
   // Idempotent (everything is CREATE ... IF NOT EXISTS), so the auth tables are
   // guaranteed to exist rather than failing at the first login attempt.
-  for (const schema of ['users.sql', 'assistants.sql']) {
+  for (const schema of ['users.sql', 'assistants.sql', 'uniform.sql']) {
     await db.exec(fs.readFileSync(path.join(__dirname, '..', 'database', schema), 'utf8'))
   }
 
@@ -96,6 +97,7 @@ async function start() {
   app.use('/api/users', createUserRoutes(db, requireAdmin, requireRole))
   app.use('/api/admin', createAdminRoutes(requireAdmin))
   app.use('/api/upload', createUploadRoutes(requireAdmin))
+  app.use('/api/uniform', createUniformRoutes(db, requireAdmin))
 
   // ======================================================
   // HEALTH / DEBUG

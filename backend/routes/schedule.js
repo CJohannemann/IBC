@@ -7,7 +7,14 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
   // GET all schedule entries, optionally filtered by ?sport=&league=&type=
   router.get('/', async (req, res) => {
     try {
-      let query = `SELECT * FROM schedule WHERE 1=1`
+      let query = `
+        SELECT
+          s.*,
+          u.title      AS uniform_title,
+          u.image_path AS uniform_image_path
+        FROM schedule s
+        LEFT JOIN uniform u ON u.id = s.uniform_id
+        WHERE 1=1`
       const params = []
 
       if (req.query.sport) {
@@ -48,6 +55,7 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
         notes,
         season,
         year,
+        uniform_id,
         jersey_color,
         pants_color,
         hat_color
@@ -55,8 +63,8 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
 
       const result = await db.run(
         `
-        INSERT INTO schedule (date, time, type, league, sport, location, opponent, home_away, notes, season, year, jersey_color, pants_color, hat_color)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO schedule (date, time, type, league, sport, location, opponent, home_away, notes, season, year, jersey_color, pants_color, hat_color, uniform_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           date,
@@ -72,7 +80,8 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
           year || null,
           jersey_color || null,
           pants_color || null,
-          hat_color || null
+          hat_color || null,
+          uniform_id || null
         ]
       )
 
@@ -98,6 +107,7 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
         notes,
         season,
         year,
+        uniform_id,
         jersey_color,
         pants_color,
         hat_color
@@ -108,7 +118,7 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
         UPDATE schedule
         SET date = ?, time = ?, type = ?, league = ?, sport = ?, location = ?, 
             opponent = ?, home_away = ?, notes = ?, season = ?, year = ?,
-            jersey_color = ?, pants_color = ?, hat_color = ?
+            jersey_color = ?, pants_color = ?, hat_color = ?, uniform_id = ?
         WHERE id = ?
         `,
         [
@@ -126,6 +136,7 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
           jersey_color || null,
           pants_color || null,
           hat_color || null,
+          uniform_id || null,
           req.params.id
         ]
       )

@@ -17,9 +17,17 @@ export interface ScheduleEntry {
   jersey_color: string | null
   pants_color: string | null
   hat_color: string | null
+  uniform_id: number | null
+  // Joined in by the API so the page has the photo without a second request.
+  uniform_title?: string | null
+  uniform_image_path?: string | null
 }
 
-export type NewScheduleEntry = Omit<ScheduleEntry, 'id'>
+// The joined fields are read-only, so they are not part of what you send back.
+export type NewScheduleEntry = Omit<
+  ScheduleEntry,
+  'id' | 'uniform_title' | 'uniform_image_path'
+>
 
 export async function getSchedule(filters?: { sport?: string; league?: string; type?: string }): Promise<ScheduleEntry[]> {
   const { data } = await api.get('/schedule', { params: filters })

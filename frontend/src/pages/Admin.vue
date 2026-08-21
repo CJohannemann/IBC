@@ -369,7 +369,7 @@
       <Teleport to="body">
         <div v-if="showDeleteModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           @click="closeDeleteModal">
-          <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6" @click.stop>
+          <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 max-h-[90vh] overflow-y-auto" @click.stop>
             <div class="flex items-start justify-between mb-4">
               <h3 class="text-2xl font-black text-ibc-navy">Delete Player</h3>
               <button @click="closeDeleteModal" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
@@ -594,7 +594,7 @@
       <Teleport to="body">
         <div v-if="showScheduleModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           @click="closeScheduleModal">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6" @click.stop>
+          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto" @click.stop>
             <div class="flex items-start justify-between mb-4">
               <div>
                 <h3 class="text-2xl font-black text-ibc-navy">Add Schedule Entry</h3>
@@ -676,23 +676,58 @@
 
               <div class="border-t pt-4 mt-4">
                 <label class="block text-sm font-semibold mb-3">Uniform</label>
-                <div class="grid grid-cols-3 gap-3">
-                  <div>
-                    <label class="block text-xs text-slate-600 mb-1">Jersey</label>
-                    <input v-model="scheduleForm.jersey_color" type="text" class="block w-full p-2 border rounded text-sm"
-                      placeholder="e.g., Blue" />
-                  </div>
-                  <div>
-                    <label class="block text-xs text-slate-600 mb-1">Pants</label>
-                    <input v-model="scheduleForm.pants_color" type="text" class="block w-full p-2 border rounded text-sm"
-                      placeholder="e.g., White" />
-                  </div>
-                  <div>
-                    <label class="block text-xs text-slate-600 mb-1">Hat</label>
-                    <input v-model="scheduleForm.hat_color" type="text" class="block w-full p-2 border rounded text-sm"
-                      placeholder="e.g., Red" />
-                  </div>
+
+                <div v-if="uniforms.length" class="grid grid-cols-3 gap-3 mb-4">
+                  <label v-for="u in uniforms" :key="u.id"
+                    class="cursor-pointer border-2 rounded-lg p-2 flex flex-col items-center gap-1 transition"
+                    :class="scheduleForm.uniform_id === u.id
+                      ? 'border-ibc-navy bg-ibc-navy/5'
+                      : 'border-slate-200 hover:border-slate-400'">
+                    <img v-if="u.image_path" :src="u.image_path" :alt="u.title"
+                      class="w-full h-20 object-contain" />
+                    <div v-else
+                      class="w-full h-20 flex items-center justify-center text-xs text-slate-400 bg-slate-50 rounded">
+                      No photo
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <input type="radio" :value="u.id" v-model="scheduleForm.uniform_id" />
+                      <span class="text-xs font-semibold text-ibc-navy text-center">{{ u.title }}</span>
+                    </div>
+                  </label>
                 </div>
+
+                <p v-else class="text-xs text-slate-500 mb-4">
+                  No uniforms yet. Add them from the Uniform section on the dashboard.
+                </p>
+
+                <button v-if="scheduleForm.uniform_id" type="button"
+                  @click="scheduleForm.uniform_id = null"
+                  class="text-xs font-semibold text-slate-500 hover:underline mb-4">
+                  Clear selection
+                </button>
+
+                <details class="text-sm">
+                  <summary class="cursor-pointer text-xs font-semibold text-slate-500">
+                    Or describe the colours instead
+                  </summary>
+                  <div class="grid grid-cols-3 gap-3 mt-3">
+                    <div>
+                      <label class="block text-xs text-slate-600 mb-1">Jersey</label>
+                      <input v-model="scheduleForm.jersey_color" type="text"
+                        class="block w-full p-2 border rounded text-sm" placeholder="e.g., Blue" />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-slate-600 mb-1">Pants</label>
+                      <input v-model="scheduleForm.pants_color" type="text"
+                        class="block w-full p-2 border rounded text-sm" placeholder="e.g., White" />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-slate-600 mb-1">Hat</label>
+                      <input v-model="scheduleForm.hat_color" type="text"
+                        class="block w-full p-2 border rounded text-sm" placeholder="e.g., Red" />
+                    </div>
+                  </div>
+                </details>
               </div>
 
               <div v-if="scheduleMessage" :class="scheduleMsgClass" class="p-2 rounded text-sm">
@@ -804,23 +839,58 @@
 
               <div class="border-t pt-4 mt-4">
                 <label class="block text-sm font-semibold mb-3">Uniform</label>
-                <div class="grid grid-cols-3 gap-3">
-                  <div>
-                    <label class="block text-xs text-slate-600 mb-1">Jersey</label>
-                    <input v-model="editScheduleForm.jersey_color" type="text" class="block w-full p-2 border rounded text-sm"
-                      placeholder="e.g., Blue" />
-                  </div>
-                  <div>
-                    <label class="block text-xs text-slate-600 mb-1">Pants</label>
-                    <input v-model="editScheduleForm.pants_color" type="text" class="block w-full p-2 border rounded text-sm"
-                      placeholder="e.g., White" />
-                  </div>
-                  <div>
-                    <label class="block text-xs text-slate-600 mb-1">Hat</label>
-                    <input v-model="editScheduleForm.hat_color" type="text" class="block w-full p-2 border rounded text-sm"
-                      placeholder="e.g., Red" />
-                  </div>
+
+                <div v-if="uniforms.length" class="grid grid-cols-3 gap-3 mb-4">
+                  <label v-for="u in uniforms" :key="u.id"
+                    class="cursor-pointer border-2 rounded-lg p-2 flex flex-col items-center gap-1 transition"
+                    :class="editScheduleForm.uniform_id === u.id
+                      ? 'border-ibc-navy bg-ibc-navy/5'
+                      : 'border-slate-200 hover:border-slate-400'">
+                    <img v-if="u.image_path" :src="u.image_path" :alt="u.title"
+                      class="w-full h-20 object-contain" />
+                    <div v-else
+                      class="w-full h-20 flex items-center justify-center text-xs text-slate-400 bg-slate-50 rounded">
+                      No photo
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <input type="radio" :value="u.id" v-model="editScheduleForm.uniform_id" />
+                      <span class="text-xs font-semibold text-ibc-navy text-center">{{ u.title }}</span>
+                    </div>
+                  </label>
                 </div>
+
+                <p v-else class="text-xs text-slate-500 mb-4">
+                  No uniforms yet. Add them from the Uniform section on the dashboard.
+                </p>
+
+                <button v-if="editScheduleForm.uniform_id" type="button"
+                  @click="editScheduleForm.uniform_id = null"
+                  class="text-xs font-semibold text-slate-500 hover:underline mb-4">
+                  Clear selection
+                </button>
+
+                <details class="text-sm">
+                  <summary class="cursor-pointer text-xs font-semibold text-slate-500">
+                    Or describe the colours instead
+                  </summary>
+                  <div class="grid grid-cols-3 gap-3 mt-3">
+                    <div>
+                      <label class="block text-xs text-slate-600 mb-1">Jersey</label>
+                      <input v-model="editScheduleForm.jersey_color" type="text"
+                        class="block w-full p-2 border rounded text-sm" placeholder="e.g., Blue" />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-slate-600 mb-1">Pants</label>
+                      <input v-model="editScheduleForm.pants_color" type="text"
+                        class="block w-full p-2 border rounded text-sm" placeholder="e.g., White" />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-slate-600 mb-1">Hat</label>
+                      <input v-model="editScheduleForm.hat_color" type="text"
+                        class="block w-full p-2 border rounded text-sm" placeholder="e.g., Red" />
+                    </div>
+                  </div>
+                </details>
               </div>
 
               <div v-if="editScheduleMessage" :class="editScheduleMsgClass" class="p-2 rounded text-sm">
@@ -840,7 +910,7 @@
       <Teleport to="body">
         <div v-if="showDeleteScheduleModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           @click="closeDeleteScheduleModal">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6" @click.stop>
+          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto" @click.stop>
             <div class="flex items-start justify-between mb-4">
               <h3 class="text-2xl font-black text-ibc-navy">Delete Schedule Entry</h3>
               <button @click="closeDeleteScheduleModal" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
@@ -1092,7 +1162,7 @@
       <Teleport to="body">
         <div v-if="showDeleteNewsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           @click="closeDeleteNewsModal">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6" @click.stop>
+          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto" @click.stop>
             <div class="flex items-start justify-between mb-4">
               <div>
                 <h3 class="text-2xl font-black text-ibc-navy">Delete News Article</h3>
@@ -1349,7 +1419,7 @@
       <Teleport to="body">
         <div v-if="showDeleteSwagModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           @click="closeDeleteSwagModal">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6" @click.stop>
+          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto" @click.stop>
             <div class="flex items-start justify-between mb-4">
               <div>
                 <h3 class="text-2xl font-black text-ibc-navy">Delete Swag Item</h3>
@@ -1451,10 +1521,28 @@
               </div>
 
               <div class="flex justify-end gap-3 pt-2">
-                <button type="button" @click="closeSwagModal" class="px-4 py-2 border rounded">Cancel</button>
-                <button type="submit" class="px-4 py-2 bg-ibc-navy text-white rounded">Add Item</button>
+                <button type="button" @click="closeUniformModal" class="px-4 py-2 border rounded">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-ibc-navy text-white rounded">Add Uniform</button>
               </div>
             </form>
+
+            <div v-if="uniforms.length" class="border-t mt-6 pt-4">
+              <p class="text-sm font-semibold text-ibc-navy mb-3">Existing uniforms</p>
+              <div class="grid grid-cols-3 gap-3">
+                <div v-for="u in uniforms" :key="u.id" class="border rounded-lg p-2 text-center">
+                  <img v-if="u.image_path" :src="u.image_path" :alt="u.title"
+                    class="w-full h-20 object-contain" />
+                  <div v-else class="w-full h-20 flex items-center justify-center text-xs text-slate-400 bg-slate-50 rounded">
+                    No photo
+                  </div>
+                  <div class="text-xs font-semibold text-ibc-navy mt-1">{{ u.title }}</div>
+                  <button type="button" @click="removeUniform(u)"
+                    class="text-xs font-semibold text-red-600 hover:underline mt-1">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </Teleport>
@@ -1799,7 +1887,7 @@
       <Teleport to="body">
         <div v-if="showDeleteCoachModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           @click="closeDeleteCoachModal">
-          <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6" @click.stop>
+          <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 max-h-[90vh] overflow-y-auto" @click.stop>
             <div class="flex items-start justify-between mb-4">
               <h3 class="text-2xl font-black text-ibc-navy">Delete Coach</h3>
               <button @click="closeDeleteCoachModal" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
@@ -1946,7 +2034,7 @@
       <Teleport to="body">
         <div v-if="showDeleteAssistantCoachModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           @click="closeDeleteAssistantCoachModal">
-          <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6" @click.stop>
+          <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 max-h-[90vh] overflow-y-auto" @click.stop>
             <div class="flex items-start justify-between mb-4">
               <h3 class="text-2xl font-black text-ibc-navy">Delete Assistant Coach</h3>
               <button @click="closeDeleteAssistantCoachModal" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
@@ -2011,7 +2099,7 @@ import { useSportStore } from '@/stores/sport'
 import { getCoaches, createCoach, updateCoach, deleteCoach, type Coach } from '@/api/coaches'
 import { getAssistants, createAssistant, updateAssistant, deleteAssistant, type Assistant } from '@/api/assistants'
 import { getTeams, type Team } from '@/api/teams'
-import {createUniform, type NewUniformItem} from "@/api/uniform.ts";
+import { createUniform, getUniform, deleteUniform, type NewUniformItem, type Uniform } from '@/api/uniform'
 
 const playerStore = usePlayerStore()
 const sportStore = useSportStore()
@@ -2211,12 +2299,14 @@ const scheduleForm = reactive<NewScheduleEntry>({
   notes: null,
   season: null,
   year: new Date().getFullYear(),
+  uniform_id: null,
   jersey_color: null,
   pants_color: null,
   hat_color: null
 })
 
 function openScheduleModal() {
+  loadUniforms()
   scheduleForm.date = ''
   scheduleForm.time = ''
   scheduleForm.type = 'Game'
@@ -2277,12 +2367,14 @@ const editScheduleForm = reactive<NewScheduleEntry>({
   notes: null,
   season: null,
   year: new Date().getFullYear(),
+  uniform_id: null,
   jersey_color: null,
   pants_color: null,
   hat_color: null
 })
 
 async function openEditScheduleModal() {
+  loadUniforms()
   try {
     scheduleEntries.value = await getSchedule()
   } catch (err) {
@@ -2308,6 +2400,7 @@ function loadEditSchedule() {
       notes: entry.notes,
       season: entry.season,
       year: entry.year,
+      uniform_id: entry.uniform_id ?? null,
       jersey_color: entry.jersey_color,
       pants_color: entry.pants_color,
       hat_color: entry.hat_color
@@ -2684,12 +2777,25 @@ const uniformMsgClass = ref('')
 const uniformTitle = ref('')
 const uniformMessage = ref('')
 const uploadingUniformAdd = ref(false)
+// Loaded when a schedule modal opens, so the picker always reflects what exists.
+const uniforms = ref<Uniform[]>([])
+
+async function loadUniforms() {
+  try {
+    uniforms.value = await getUniform()
+  } catch (err) {
+    console.error('Failed to load uniforms:', err)
+    uniforms.value = []
+  }
+}
+
 const uniformForm = reactive<NewUniformItem>({
   title: '',
   image_path: null
 })
 
 function openUniformModal() {
+  loadUniforms()
   uniformForm.title = ''
   uniformForm.image_path = null
   uniformTitle.value = ''
@@ -2699,12 +2805,26 @@ function openUniformModal() {
 
 function closeUniformModal() {
   showUniformModal.value = false
-  swagMessage.value = ''
+  uniformMessage.value = ''
+}
+
+async function removeUniform(u: Uniform) {
+  if (!confirm(`Delete the "${u.title}" uniform? Schedule entries using it will lose the photo.`)) return
+
+  try {
+    await deleteUniform(u.id)
+    await loadUniforms()
+  } catch (err) {
+    console.error('Delete uniform error:', err)
+    uniformMessage.value = 'Failed to delete uniform'
+    uniformMsgClass.value = 'bg-red-100 text-red-700'
+  }
 }
 
 async function submitUniform() {
   try {
     await createUniform(uniformForm)
+    await loadUniforms()
     uniformMessage.value = 'Uniform added!'
     uniformMsgClass.value = 'bg-green-100 text-green-700'
     setTimeout(() => closeUniformModal(), 1000)

@@ -73,9 +73,20 @@ async function addSeasonToStats(db) {
   return applied.map((t) => `${t} (backfilled as ${season} ${year})`)
 }
 
-async function runMigrations(db) {
-  const applied = await addSeasonToStats(db)
-  return applied
+/** Let a schedule entry point at a uniform, instead of three free-text colours. */
+async function addUniformToSchedule(db) {
+  if (!(await tableExists(db, 'schedule'))) return []
+  if (await columnExists(db, 'schedule', 'uniform_id')) return []
+
+  await db.run('ALTER TABLE schedule ADD COLUMN uniform_id INTEGER')
+  return ['schedule.uniform_id']
 }
 
-module.exports = { runMigrations, addSeasonToStats, currentSeason, columnExists }
+async function runMigrations(db) {
+  return [
+    ...(await addSeasonToStats(db)),
+    ...(await addUniformToSchedule(db)),
+  ]
+}
+
+module.exports = { runMigrations, addUniformToSchedule, addSeasonToStats, currentSeason, columnExists }

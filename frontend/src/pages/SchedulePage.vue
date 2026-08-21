@@ -267,8 +267,21 @@ const formatTime = (time: string) => {
             </div>
 
             <!-- Uniform Section -->
-            <div v-if="selectedEntry?.jersey_color || selectedEntry?.pants_color || selectedEntry?.hat_color" class="border-t pt-4 mt-4">
+            <div v-if="selectedEntry?.uniform_image_path || selectedEntry?.uniform_title || selectedEntry?.jersey_color || selectedEntry?.pants_color || selectedEntry?.hat_color" class="border-t pt-4 mt-4">
               <h4 class="text-sm font-bold text-ibc-navy uppercase mb-3">Uniform</h4>
+
+              <!-- A photo settles it faster than three colour names -->
+              <div v-if="selectedEntry?.uniform_image_path" class="mb-3">
+                <img :src="selectedEntry.uniform_image_path" :alt="selectedEntry.uniform_title || 'Uniform'"
+                  class="w-40 h-40 object-contain rounded border bg-white" />
+                <p v-if="selectedEntry.uniform_title" class="font-semibold text-ibc-navy mt-1">
+                  {{ selectedEntry.uniform_title }}
+                </p>
+              </div>
+              <p v-else-if="selectedEntry?.uniform_title" class="font-semibold text-ibc-navy mb-3">
+                {{ selectedEntry.uniform_title }}
+              </p>
+
               <div class="space-y-2">
                 <div v-if="selectedEntry.jersey_color" class="flex items-center gap-3">
                   <span class="text-sm text-slate-600 w-16">Jersey</span>

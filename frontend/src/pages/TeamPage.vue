@@ -24,6 +24,7 @@ const team = reactive({
   name: '',
   ageGroup: '',
   headCoach: null as string | null,
+  assistantCoaches: [] as string[],
   roster: [] as RosterPlayer[],
   wins: 0,
   losses: 0,
@@ -64,6 +65,7 @@ async function loadTeam(league: string) {
     team.name = `${leagueName.toUpperCase()} Team`
     team.ageGroup = leagueName
     team.headCoach = data.headCoach || null
+    team.assistantCoaches = data.assistantCoaches || []
     team.roster = (data.players || []).map((p) => ({
       number: p.player_number,
       first_name: p.first_name,
@@ -79,6 +81,7 @@ async function loadTeam(league: string) {
     team.name = `${league.toUpperCase()} Team`
     team.ageGroup = league
     team.headCoach = null
+    team.assistantCoaches = []
     team.roster = []
   }
 }
@@ -139,9 +142,22 @@ function closePlayerModal() {
    <div class="max-w-6xl mx-auto px-8 py-12">
      <!-- Coach Section (kept minimal) -->
      <div class="mb-12">
-       <h2 class="text-2xl font-black text-ibc-navy uppercase tracking-wide mb-4">Head Coach</h2>
+       <h2 class="text-2xl font-black text-ibc-navy uppercase tracking-wide mb-4">Coaching Staff</h2>
        <div class="bg-white p-6 rounded-lg shadow max-w-sm">
-         <p class="text-lg font-semibold text-ibc-navy">{{ team.headCoach}}</p>
+         <p class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Head Coach</p>
+         <p class="text-lg font-semibold text-ibc-navy">{{ team.headCoach || 'Not assigned' }}</p>
+
+         <div v-if="team.assistantCoaches.length" class="mt-4 pt-4 border-t border-slate-200">
+           <p class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+             {{ team.assistantCoaches.length === 1 ? 'Assistant Coach' : 'Assistant Coaches' }}
+           </p>
+           <ul class="space-y-1">
+             <li v-for="assistant in team.assistantCoaches" :key="assistant"
+               class="text-base font-medium text-ibc-navy">
+               {{ assistant }}
+             </li>
+           </ul>
+         </div>
        </div>
      </div>
 

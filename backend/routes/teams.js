@@ -72,12 +72,29 @@ module.exports = function createTeamRoutes(db) {
         SELECT
           first_name,
           last_name,
-          league
+          league,
+          season,
+          year
         FROM coaches
         WHERE lower(league) = ?
           AND archive = 'N'
         LIMIT 1
       `, league)
+
+      // Assistants hang off the head coach's composite key, so there is nobody
+      // to look up until we know which coach is current for this league.
+      // Compared case-insensitively, as league names vary in casing ('10u'/'10U').
+      const assistants = coach
+        ? await db.all(`
+            SELECT first_name, last_name
+            FROM assistants
+            WHERE lower(head_coach_last_name) = lower(?)
+              AND lower(head_coach_league)    = lower(?)
+              AND lower(head_coach_season)    = lower(?)
+              AND head_coach_year             = ?
+            ORDER BY last_name, first_name
+          `, [coach.last_name, coach.league, coach.season, coach.year])
+        : []
 
       const players = await db.all(`
         SELECT
@@ -92,6 +109,7 @@ module.exports = function createTeamRoutes(db) {
         headCoach: coach
           ? `${coach.first_name} ${coach.last_name}`
           : null,
+        assistantCoaches: assistants.map((a) => `${a.first_name} ${a.last_name}`),
         players
       })
 

@@ -10,6 +10,7 @@ export interface Team {
 export interface TeamDetail {
   league: string
   headCoach: string | null
+  assistantCoaches: string[]
   players: Player[]
 }
 

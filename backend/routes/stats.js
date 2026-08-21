@@ -88,13 +88,15 @@ module.exports = (db, requireAdmin) => {
       let query = 'SELECT * FROM team_stats WHERE 1=1'
       const params = []
 
+      // Compared case-insensitively: the team page lowercases the age group
+      // from the URL ('10u') while the stored value is '10U'.
       if (sport) {
-        query += ' AND sport = ?'
-        params.push(sport)
+        query += ' AND lower(sport) = ?'
+        params.push(String(sport).toLowerCase())
       }
       if (league) {
-        query += ' AND league = ?'
-        params.push(league)
+        query += ' AND lower(league) = ?'
+        params.push(String(league).toLowerCase())
       }
 
       query += ' ORDER BY wins DESC, losses ASC'
@@ -130,8 +132,9 @@ module.exports = (db, requireAdmin) => {
       }
 
       const existing = await db.get(
-        'SELECT id, team_name FROM team_stats WHERE league = ? AND sport = ? ORDER BY id LIMIT 1',
-        [league, sport]
+        `SELECT id, team_name FROM team_stats
+          WHERE lower(league) = ? AND lower(sport) = ? ORDER BY id LIMIT 1`,
+        [String(league).toLowerCase(), String(sport).toLowerCase()]
       )
 
       if (existing) {

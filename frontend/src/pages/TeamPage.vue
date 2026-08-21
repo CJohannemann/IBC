@@ -5,6 +5,7 @@ import { getTeam } from '@/api/teams'
 import { getTeamStats } from '@/api/stats'
 import { type Player } from '@/api/players'
 import { usePlayerStore } from '@/stores/players'
+import placeholderPlayer from '@/assets/placeholder-player.png'
 
 const route = useRoute()
 const playerStore = usePlayerStore()
@@ -173,7 +174,7 @@ function closePlayerModal() {
            @click="openPlayer(player.number)"
            class="bg-white rounded-lg shadow p-3 flex items-center gap-3 hover:shadow-lg transition text-left"
          >
-           <img :src="player.photo_path || '/placeholder-player.png'" alt="player photo" class="w-14 h-14 object-cover rounded-full border-2 border-white/20" />
+           <img :src="player.photo_path || placeholderPlayer" alt="player photo" class="w-14 h-14 object-cover rounded-full border-2 border-white/20" />
            <div class="flex-1">
              <div class="font-bold text-ibc-navy">{{ player.name }}</div>
              <div class="text-sm text-slate-500">#{{ player.number }}</div>
@@ -189,7 +190,7 @@ function closePlayerModal() {
        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6" @click.stop>
          <div class="flex items-start justify-between mb-4">
            <div class="flex items-center gap-4">
-             <img :src="selectedPlayer?.photo_path || '/placeholder-player.png'" alt="photo" class="w-20 h-20 object-cover rounded-full border-2 border-white/20" />
+             <img :src="selectedPlayer?.photo_path || placeholderPlayer" alt="photo" class="w-20 h-20 object-cover rounded-full border-2 border-white/20" />
              <div>
                <h3 class="text-2xl font-black text-ibc-navy">{{ selectedPlayer?.first_name ? (selectedPlayer.first_name + ' ' + selectedPlayer.last_name) : selectedPlayer?.name }}</h3>
                <div class="text-sm text-slate-600">#{{ selectedPlayer?.number }}</div>

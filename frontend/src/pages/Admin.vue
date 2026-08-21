@@ -415,20 +415,30 @@
         <div v-if="showEditModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           @click="closeEditModal">
           <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6" @click.stop>
-            <div>
-              <label class="block text-sm font-medium mb-1">
-                Select Player
-              </label>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-sm font-medium mb-1">Select Team</label>
+                <select v-model="editTeamKey" @change="onEditTeamChange" class="w-full border rounded p-2">
+                  <option value="">Choose a team</option>
+                  <option v-for="team in editTeamOptions" :key="team.key" :value="team.key">
+                    {{ team.label }} ({{ team.count }})
+                  </option>
+                </select>
+              </div>
 
-              <select v-model="selectedEditPlayerId" @change="loadEditPlayer" class="w-full border rounded p-2">
-                <option disabled value="">
-                  Choose a player
-                </option>
+              <div>
+                <label class="block text-sm font-medium mb-1">Select Player</label>
+                <select v-model="selectedEditPlayerId" @change="loadEditPlayer"
+                  :disabled="!editTeamKey" class="w-full border rounded p-2 disabled:bg-slate-100">
+                  <option disabled value="">
+                    {{ editTeamKey ? 'Choose a player' : 'Choose a team first' }}
+                  </option>
 
-                <option v-for="player in playerStore.players" :key="player.id" :value="player.id">
-                  #{{ player.player_number }} - {{ player.first_name }} {{ player.last_name }}
-                </option>
-              </select>
+                  <option v-for="player in editTeamPlayers" :key="player.id" :value="player.id">
+                    #{{ player.player_number }} - {{ player.first_name }} {{ player.last_name }}
+                  </option>
+                </select>
+              </div>
             </div>
             <!-- Edit Form -->
             <div v-if="selectedEditPlayerId" class="space-y-4 mt-4">
@@ -2188,6 +2198,53 @@ const modalForm = reactive<NewPlayerForm>({
 //***********************
 const selectedEditPlayerId = ref<number | null>(null)
 
+// A "team" is a league in a given season - 10U Fall 2026 is a different squad
+// from 10U Spring 2027, so filtering on league alone would mix them together.
+const editTeamKey = ref('')
+
+function teamKeyOf(p: { league?: string | null; season?: string | null; year?: number | null }) {
+  return [p.league || '', p.season || '', p.year ?? ''].join('|')
+}
+
+const editTeamOptions = computed(() => {
+  const groups = new Map<string, { key: string; label: string; count: number; year: number }>()
+
+  for (const p of playerStore.players) {
+    const key = teamKeyOf(p)
+    const existing = groups.get(key)
+
+    if (existing) {
+      existing.count++
+      continue
+    }
+
+    const season = [p.season, p.year].filter(Boolean).join(' ')
+    groups.set(key, {
+      key,
+      label: p.league ? (season ? `${p.league} — ${season}` : p.league) : 'Unassigned',
+      count: 1,
+      year: p.year ?? 0,
+    })
+  }
+
+  // Newest season first, so the current squad is at the top of the list.
+  return [...groups.values()].sort(
+    (a, b) => b.year - a.year || a.label.localeCompare(b.label)
+  )
+})
+
+const editTeamPlayers = computed(() =>
+  playerStore.players
+    .filter((p) => teamKeyOf(p) === editTeamKey.value)
+    .sort((a, b) => (a.player_number ?? 0) - (b.player_number ?? 0))
+)
+
+/** Switching teams must clear the player, or the form keeps editing someone
+ *  who is no longer in the visible list. */
+function onEditTeamChange() {
+  selectedEditPlayerId.value = null
+}
+
 
 onMounted(() => {
   playerStore.fetchAll()
@@ -2230,6 +2287,11 @@ function openAddModal() {
 }
 
 function openEditModal() {
+  // Start clean: reopening should not land on the team picked last time.
+  editTeamKey.value = ''
+  selectedEditPlayerId.value = null
+  // Refresh, so a player added since the page loaded appears in the list.
+  playerStore.fetchAll()
   showEditModal.value = true
 }
 
@@ -2259,6 +2321,8 @@ async function confirmDelete() {
 
 function closeEditModal() {
   showEditModal.value = false
+  editTeamKey.value = ''
+  selectedEditPlayerId.value = null
   playerImageFileEdit.value = null
   playerImagePreviewEdit.value = ''
 }

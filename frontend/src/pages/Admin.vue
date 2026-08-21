@@ -205,6 +205,14 @@
             </svg>
             <div class="font-bold text-ibc-navy">Upload Uniform</div>
           </button>
+
+          <button @click="openRecordModal"
+            class="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center hover:shadow-lg transition-all hover:scale-105">
+            <svg class="w-12 h-12 text-ibc-navy mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <div class="font-bold text-ibc-navy">Update Team Record</div>
+          </button>
         </div>
       </div>
 
@@ -1539,6 +1547,87 @@
         </div>
       </Teleport>
 
+      <!-- Update Team Record Modal -->
+      <Teleport to="body">
+        <div v-if="showRecordModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          @click="closeRecordModal">
+          <div class="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" @click.stop>
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <h3 class="text-2xl font-black text-ibc-navy">Update Team Record</h3>
+                <div class="text-sm text-slate-600">Sets the win-loss record shown on the team page</div>
+              </div>
+              <button @click="closeRecordModal" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+            </div>
+
+            <form @submit.prevent="submitRecord" class="space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-semibold">League *</label>
+                  <select v-model="recordForm.league" @change="loadExistingRecord"
+                    class="mt-1 block w-full p-2 border rounded" required>
+                    <option disabled value="">Select a league</option>
+                    <option v-for="team in availableTeams" :key="`${team.league}-${team.sport}`" :value="team.league">
+                      {{ team.league }} ({{ team.sport }})
+                    </option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold">Sport</label>
+                  <select v-model="recordForm.sport" @change="loadExistingRecord"
+                    class="mt-1 block w-full p-2 border rounded" required>
+                    <option v-for="sp in sportStore.availableSports" :key="sp" :value="sp">{{ sp }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold">Team Name</label>
+                <input v-model="recordForm.team_name" type="text" placeholder="Defaults to the league name"
+                  class="mt-1 block w-full p-2 border rounded" />
+              </div>
+
+              <div class="grid grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-sm font-semibold">Wins</label>
+                  <input v-model.number="recordForm.wins" type="number" min="0"
+                    class="mt-1 block w-full p-2 border rounded" />
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold">Losses</label>
+                  <input v-model.number="recordForm.losses" type="number" min="0"
+                    class="mt-1 block w-full p-2 border rounded" />
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold">Ties</label>
+                  <input v-model.number="recordForm.ties" type="number" min="0"
+                    class="mt-1 block w-full p-2 border rounded" />
+                </div>
+              </div>
+
+              <div v-if="recordForm.league" class="p-3 bg-slate-50 rounded text-sm text-slate-700">
+                Team page will show:
+                <span class="font-bold text-ibc-navy">
+                  {{ recordForm.wins || 0 }}-{{ recordForm.losses || 0 }}<span v-if="recordForm.ties">-{{ recordForm.ties }}</span> Record
+                </span>
+              </div>
+
+              <div v-if="recordMessage" :class="recordMsgClass" class="p-2 rounded text-sm">
+                {{ recordMessage }}
+              </div>
+
+              <div class="flex justify-end gap-3 pt-2">
+                <button type="button" @click="closeRecordModal" class="px-4 py-2 border rounded">Cancel</button>
+                <button type="submit" :disabled="!recordForm.league || savingRecord"
+                  class="px-4 py-2 bg-ibc-navy text-white rounded disabled:opacity-50">
+                  {{ savingRecord ? 'Saving...' : 'Save Record' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </Teleport>
+
       <!-- Add Coach Modal -->
       <Teleport to="body">
         <div v-if="showAddCoachModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -1860,14 +1949,14 @@ import { type Player } from '@/api/players'
 import { createScheduleEntry, updateScheduleEntry, deleteScheduleEntry, getSchedule, type NewScheduleEntry, type ScheduleEntry } from '@/api/schedule'
 import { createNews, updateNews, deleteNews, getNews, type NewNewsArticle, type NewsArticle } from '@/api/news'
 import { createSwag, updateSwag, deleteSwag, getSwag, type NewSwagItem, type SwagItem } from '@/api/swag'
-import { uploadTeamStats } from '@/api/stats'
+import { uploadTeamStats, getTeamStats, updateTeamRecord } from '@/api/stats'
 import { uploadImage } from '@/api/upload'
 import { usePlayerStore } from '@/stores/players'
 import { useSportStore } from '@/stores/sport'
 import { getCoaches, createCoach, updateCoach, deleteCoach, type Coach } from '@/api/coaches'
 import { getAssistants, createAssistant, updateAssistant, deleteAssistant, type Assistant } from '@/api/assistants'
 import { getTeams, type Team } from '@/api/teams'
-// import {createUniform, type NewUniformItem} from "@/api/uniform.ts";
+import {createUniform, type NewUniformItem} from "@/api/uniform.ts";
 
 const playerStore = usePlayerStore()
 const sportStore = useSportStore()
@@ -2809,6 +2898,91 @@ async function submitStats() {
     statsMsgClass.value = 'bg-red-100 text-red-700'
   } finally {
     uploadingStats.value = false
+  }
+}
+
+// ======================================================
+// TEAM RECORD
+// ======================================================
+
+const showRecordModal = ref(false)
+const recordMessage = ref('')
+const recordMsgClass = ref('')
+const savingRecord = ref(false)
+
+const recordForm = reactive({
+  league: '',
+  sport: 'Baseball',
+  team_name: '',
+  wins: 0,
+  losses: 0,
+  ties: 0
+})
+
+async function openRecordModal() {
+  try {
+    availableTeams.value = await getTeams()
+  } catch (err) {
+    console.error('Failed to load teams:', err)
+    availableTeams.value = []
+  }
+  recordForm.league = ''
+  recordForm.sport = sportStore.activeSport
+  recordForm.team_name = ''
+  recordForm.wins = 0
+  recordForm.losses = 0
+  recordForm.ties = 0
+  recordMessage.value = ''
+  showRecordModal.value = true
+}
+
+function closeRecordModal() {
+  showRecordModal.value = false
+  recordMessage.value = ''
+}
+
+// Prefill with whatever record is already stored for the chosen league
+async function loadExistingRecord() {
+  if (!recordForm.league) return
+
+  try {
+    const stats = await getTeamStats({ league: recordForm.league, sport: recordForm.sport })
+    const existing = stats[0]
+
+    recordForm.team_name = existing?.team_name || ''
+    recordForm.wins = existing?.wins || 0
+    recordForm.losses = existing?.losses || 0
+    recordForm.ties = existing?.ties || 0
+  } catch (err) {
+    console.error('Failed to load team record:', err)
+  }
+}
+
+async function submitRecord() {
+  if (!recordForm.league) return
+
+  savingRecord.value = true
+  recordMessage.value = ''
+
+  try {
+    await updateTeamRecord({
+      league: recordForm.league,
+      sport: recordForm.sport,
+      team_name: recordForm.team_name || undefined,
+      wins: recordForm.wins || 0,
+      losses: recordForm.losses || 0,
+      ties: recordForm.ties || 0
+    })
+
+    recordMessage.value = 'Record updated!'
+    recordMsgClass.value = 'bg-green-100 text-green-700'
+    setTimeout(() => closeRecordModal(), 1500)
+  } catch (err: any) {
+    console.error('Team record error:', err)
+    recordMessage.value = err.response?.data?.error || 'Failed to update record'
+    recordMsgClass.value = 'bg-red-100 text-red-700'
+  } finally {
+    savingRecord.value = false
   }
 }
 

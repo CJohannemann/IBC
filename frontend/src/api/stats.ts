@@ -64,6 +64,20 @@ export async function getTeamStats(params?: { league?: string; sport?: string })
   return data
 }
 
+export interface TeamRecord {
+  league: string
+  sport: string
+  team_name?: string
+  wins: number
+  losses: number
+  ties: number
+}
+
+export async function updateTeamRecord(record: TeamRecord): Promise<{ success: boolean; wins: number; losses: number; ties: number }> {
+  const { data } = await api.put('/stats/team/record', record)
+  return data
+}
+
 export async function uploadTeamStats(file: File, league: string, sport: string): Promise<{ success: boolean; batting: number; pitching: number; teams: number }> {
   const formData = new FormData()
   formData.append('file', file)

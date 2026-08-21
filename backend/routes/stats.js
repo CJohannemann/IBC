@@ -107,6 +107,57 @@ module.exports = (db, requireAdmin) => {
     }
   })
 
+  // Update a team's win/loss/tie record by hand. The stats CSV has no team
+  // record in it, so this is the only way those numbers get set.
+  router.put('/team/record', requireAdmin, async (req, res) => {
+    try {
+      const { league, team_name, wins, losses, ties } = req.body
+      const sport = req.body.sport || 'Baseball'
+
+      if (!league) {
+        return res.status(400).json({ error: 'League is required' })
+      }
+
+      const toCount = (value) => {
+        const parsed = parseInt(value)
+        return isNaN(parsed) || parsed < 0 ? 0 : parsed
+      }
+
+      const record = {
+        wins: toCount(wins),
+        losses: toCount(losses),
+        ties: toCount(ties)
+      }
+
+      const existing = await db.get(
+        'SELECT id, team_name FROM team_stats WHERE league = ? AND sport = ? ORDER BY id LIMIT 1',
+        [league, sport]
+      )
+
+      if (existing) {
+        // Leave runs_scored / runs_allowed alone — those come from the CSV
+        await db.run(
+          `UPDATE team_stats
+           SET team_name = ?, wins = ?, losses = ?, ties = ?, updated_at = datetime('now')
+           WHERE id = ?`,
+          [team_name || existing.team_name, record.wins, record.losses, record.ties, existing.id]
+        )
+      } else {
+        await db.run(
+          `INSERT INTO team_stats
+           (league, sport, team_name, wins, losses, ties, runs_scored, runs_allowed)
+           VALUES (?, ?, ?, ?, ?, ?, 0, 0)`,
+          [league, sport, team_name || league, record.wins, record.losses, record.ties]
+        )
+      }
+
+      res.json({ success: true, ...record })
+    } catch (err) {
+      console.error('Update team record error:', err)
+      res.status(500).json({ error: 'internal_error' })
+    }
+  })
+
   // Upload comprehensive team stats CSV (batting + pitching + team stats all in one file)
   router.post('/upload', requireAdmin, upload.single('file'), async (req, res) => {
     try {
@@ -167,6 +218,14 @@ module.exports = (db, requireAdmin) => {
         SO: 69,
         ERA: 72
       }
+
+      // The CSV carries no team record, so hold on to any hand-entered W/L/T
+      // and put it back after the rebuild instead of resetting it to 0-0
+      const priorRecords = await db.all(
+        'SELECT team_name, wins, losses, ties FROM team_stats WHERE league = ? AND sport = ?',
+        [league, sport || 'Baseball']
+      )
+      const priorByTeam = new Map(priorRecords.map(r => [r.team_name, r]))
 
       // Delete existing stats for this league/sport
       await db.run('DELETE FROM batting_stats WHERE league = ? AND sport = ?', [league, sport || 'Baseball'])
@@ -294,17 +353,21 @@ module.exports = (db, requireAdmin) => {
       // Insert team stats (one team per file)
       let teamCount = 0
       for (const [teamName, stats] of teamStatsMap) {
+        // Fall back to the league's only prior row so a renamed CSV file
+        // doesn't silently drop the record
+        const prior = priorByTeam.get(teamName) || priorRecords[0]
+
         await db.run(
-          `INSERT INTO team_stats 
+          `INSERT INTO team_stats
            (league, sport, team_name, wins, losses, ties, runs_scored, runs_allowed)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             league,
             sport || 'Baseball',
             teamName,
-            stats.wins || 0,
-            stats.losses || 0,
-            stats.ties || 0,
+            prior?.wins || stats.wins || 0,
+            prior?.losses || stats.losses || 0,
+            prior?.ties || stats.ties || 0,
             stats.runs_scored || 0,
             stats.runs_allowed || 0
           ]

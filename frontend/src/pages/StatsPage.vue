@@ -146,6 +146,8 @@ const getTopBattingLeaders = (team: TeamBattingStats) => {
 const getTopPitchingLeaders = (team: TeamPitchingStats) => {
   return [...team.pitchers].sort((a, b) => a.era - b.era).slice(0, 3)
 }
+
+const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allowed || 0)
 </script>
 
 <template>
@@ -367,11 +369,11 @@ const getTopPitchingLeaders = (team: TeamPitchingStats) => {
                     {{ team.runs_allowed }}
                   </td>
                   <td class="px-6 py-4 text-sm text-center font-bold" :class="{
-                    'text-green-600': (team.runs_scored - team.runs_allowed) > 0,
-                    'text-red-600': (team.runs_scored - team.runs_allowed) < 0,
-                    'text-slate-600': (team.runs_scored - team.runs_allowed) === 0
+                    'text-green-600': getRunDiff(team) > 0,
+                    'text-red-600': getRunDiff(team) < 0,
+                    'text-slate-600': getRunDiff(team) === 0
                   }">
-                    {{ team.runs_scored - team.runs_allowed > 0 ? '+' : '' }}{{ team.runs_scored - team.runs_allowed }}
+                    {{ getRunDiff(team) > 0 ? '+' : '' }}{{ getRunDiff(team) }}
                   </td>
                 </tr>
               </tbody>

@@ -2,6 +2,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getTeam } from '@/api/teams'
+import { getTeamStats } from '@/api/stats'
 import { type Player } from '@/api/players'
 import { usePlayerStore } from '@/stores/players'
 
@@ -26,11 +27,36 @@ const team = reactive({
   roster: [] as RosterPlayer[],
   wins: 0,
   losses: 0,
+  ties: 0,
 })
+
+const record = computed(() =>
+  team.ties > 0
+    ? `${team.wins}-${team.losses}-${team.ties}`
+    : `${team.wins}-${team.losses}`
+)
 
 const ageGroup = computed(() => (route.params.ageGroup as string || '10u').toLowerCase())
 
+async function loadRecord(league: string) {
+  try {
+    const stats = await getTeamStats({ league })
+    const teamStat = stats[0]
+
+    team.wins = teamStat?.wins || 0
+    team.losses = teamStat?.losses || 0
+    team.ties = teamStat?.ties || 0
+  } catch (e) {
+    console.error('Failed to load team record:', e)
+    team.wins = 0
+    team.losses = 0
+    team.ties = 0
+  }
+}
+
 async function loadTeam(league: string) {
+  loadRecord(league)
+
   try {
     const data = await getTeam(league)
 
@@ -59,14 +85,27 @@ async function loadTeam(league: string) {
 
 watch(ageGroup, (v) => loadTeam(v), { immediate: true })
 
-const selectedPlayer = ref<Player | RosterPlayer | null>(null)
+const selectedPlayer = ref<RosterPlayer | null>(null)
 const showPlayerModal = ref(false)
+
+function toRosterPlayer(p: Player): RosterPlayer {
+  return {
+    number: p.player_number,
+    first_name: p.first_name,
+    last_name: p.last_name,
+    name: `${p.first_name} ${p.last_name}`,
+    photo_path: p.photo_path,
+    favorite_food: p.favorite_food,
+    favorite_movie: p.favorite_movie,
+    bio: p.bio,
+  }
+}
 
 async function openPlayer(number: number) {
   try {
     const data = await playerStore.fetchOne(number)
     if (data && data.player_number) {
-      selectedPlayer.value = data
+      selectedPlayer.value = toRosterPlayer(data)
       showPlayerModal.value = true
       return
     }
@@ -92,7 +131,7 @@ function closePlayerModal() {
    <div class="bg-ibc-navy text-white py-12 px-8">
      <div class="max-w-6xl mx-auto">
        <h1 class="text-4xl font-black uppercase tracking-widest mb-2">{{ team.name }}</h1>
-       <p class="text-ibc-gold text-lg font-bold">{{ team.wins }}-{{ team.losses }} Record</p>
+       <p class="text-ibc-gold text-lg font-bold">{{ record }} Record</p>
      </div>
    </div>
 
@@ -137,7 +176,7 @@ function closePlayerModal() {
              <img :src="selectedPlayer?.photo_path || '/placeholder-player.png'" alt="photo" class="w-20 h-20 object-cover rounded-full border-2 border-white/20" />
              <div>
                <h3 class="text-2xl font-black text-ibc-navy">{{ selectedPlayer?.first_name ? (selectedPlayer.first_name + ' ' + selectedPlayer.last_name) : selectedPlayer?.name }}</h3>
-               <div class="text-sm text-slate-600">#{{ selectedPlayer?.player_number || selectedPlayer?.number }}</div>
+               <div class="text-sm text-slate-600">#{{ selectedPlayer?.number }}</div>
              </div>
            </div>
            <button @click="closePlayerModal" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
@@ -149,11 +188,11 @@ function closePlayerModal() {
            <div class="grid grid-cols-2 gap-4">
              <div>
                <div class="text-xs text-slate-500 uppercase font-bold">Favorite Food</div>
-               <div class="font-semibold text-ibc-navy">{{ selectedPlayer?.favorite_food || selectedPlayer?.favoriteFood }}</div>
+               <div class="font-semibold text-ibc-navy">{{ selectedPlayer?.favorite_food }}</div>
              </div>
              <div>
                <div class="text-xs text-slate-500 uppercase font-bold">Favorite Movie</div>
-               <div class="font-semibold text-ibc-navy">{{ selectedPlayer?.favorite_movie || selectedPlayer?.favoriteMovie }}</div>
+               <div class="font-semibold text-ibc-navy">{{ selectedPlayer?.favorite_movie }}</div>
              </div>
            </div>
 

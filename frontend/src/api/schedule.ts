@@ -9,6 +9,8 @@ export interface ScheduleEntry {
   league: string
   sport: string
   location: string | null
+  // Street address for the directions link. Games only; practices leave it null.
+  address: string | null
   opponent: string | null
   home_away: 'Home' | 'Away' | null
   notes: string | null

@@ -50,6 +50,7 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
         league,
         sport,
         location,
+        address,
         opponent,
         home_away,
         notes,
@@ -63,8 +64,8 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
 
       const result = await db.run(
         `
-        INSERT INTO schedule (date, time, type, league, sport, location, opponent, home_away, notes, season, year, jersey_color, pants_color, hat_color, uniform_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO schedule (date, time, type, league, sport, location, address, opponent, home_away, notes, season, year, jersey_color, pants_color, hat_color, uniform_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           date,
@@ -73,6 +74,7 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
           league,
           sport || 'Baseball',
           location || null,
+          address || null,
           opponent || null,
           home_away || null,
           notes || null,
@@ -102,6 +104,7 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
         league,
         sport,
         location,
+        address,
         opponent,
         home_away,
         notes,
@@ -116,7 +119,7 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
       const result = await db.run(
         `
         UPDATE schedule
-        SET date = ?, time = ?, type = ?, league = ?, sport = ?, location = ?, 
+        SET date = ?, time = ?, type = ?, league = ?, sport = ?, location = ?, address = ?,
             opponent = ?, home_away = ?, notes = ?, season = ?, year = ?,
             jersey_color = ?, pants_color = ?, hat_color = ?, uniform_id = ?
         WHERE id = ?
@@ -128,6 +131,7 @@ module.exports = function createScheduleRoutes(db, requireAdmin) {
           league,
           sport || 'Baseball',
           location || null,
+          address || null,
           opponent || null,
           home_away || null,
           notes || null,

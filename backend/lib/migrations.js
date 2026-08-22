@@ -82,11 +82,34 @@ async function addUniformToSchedule(db) {
   return ['schedule.uniform_id']
 }
 
+/**
+ * Give a game a street address, separate from the location name.
+ *
+ * `location` is what people read - "Central Park #4" - and is no use to a
+ * maps search on its own. The address is what the directions link points at,
+ * and is left empty for practices, which do not need one.
+ */
+async function addAddressToSchedule(db) {
+  if (!(await tableExists(db, 'schedule'))) return []
+  if (await columnExists(db, 'schedule', 'address')) return []
+
+  await db.run('ALTER TABLE schedule ADD COLUMN address TEXT')
+  return ['schedule.address']
+}
+
 async function runMigrations(db) {
   return [
     ...(await addSeasonToStats(db)),
     ...(await addUniformToSchedule(db)),
+    ...(await addAddressToSchedule(db)),
   ]
 }
 
-module.exports = { runMigrations, addUniformToSchedule, addSeasonToStats, currentSeason, columnExists }
+module.exports = {
+  runMigrations,
+  addUniformToSchedule,
+  addAddressToSchedule,
+  addSeasonToStats,
+  currentSeason,
+  columnExists,
+}

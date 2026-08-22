@@ -1,23 +1,31 @@
 /**
- * Turn a schedule location into a Google Maps link.
+ * Turn a schedule entry's whereabouts into a Google Maps link.
  *
- * Locations are free text typed in the admin, and in practice they are local
- * shorthand - "Central Park #4", "KCYS Field 2" - not addresses. Handed to
- * Maps as-is, "Central Park #4" finds the one in Manhattan, so anything that
- * does not already say where it is gets anchored to the club's area first.
+ * Two fields are in play. `location` is what people read - "Central Park #4" -
+ * and is no use to a maps search on its own: left alone it finds the Central
+ * Park in Manhattan. `address` is the street address typed into the admin for
+ * a game, and is what the link should point at whenever it is there.
  *
- * The anchor is a guess bolted onto a nickname; a location that still lands in
- * the wrong place wants its full street address typed into the admin, which
- * this function then leaves alone.
+ * With no address to go on, the location name is anchored to the club's area
+ * so the search at least lands in the right county. That is a guess bolted
+ * onto a nickname - filling in the address field is what makes it exact.
  */
 const REGION = 'Independence, KY'
 
 /** Already says where it is: names a state, or carries a 5-digit ZIP. */
-function isSpecific(location: string): boolean {
-  return /\bKY\b|\bKentucky\b|\bOH\b|\bOhio\b|\b\d{5}\b/i.test(location)
+function isSpecific(text: string): boolean {
+  return /\bKY\b|\bKentucky\b|\bOH\b|\bOhio\b|\b\d{5}\b/i.test(text)
 }
 
-export function mapsUrl(location: string): string {
-  const query = isSpecific(location) ? location : `${location}, ${REGION}`
+export function mapsQuery(location: string | null, address?: string | null): string {
+  const addr = address?.trim()
+  if (addr) return addr
+
+  const name = (location || '').trim()
+  return isSpecific(name) ? name : `${name}, ${REGION}`
+}
+
+export function mapsUrl(location: string | null, address?: string | null): string {
+  const query = mapsQuery(location, address)
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
 }

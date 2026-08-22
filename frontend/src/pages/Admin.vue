@@ -676,7 +676,17 @@
               <div>
                 <label class="block text-sm font-semibold">Location</label>
                 <input v-model="scheduleForm.location" type="text" class="mt-1 block w-full p-2 border rounded"
-                  placeholder="Field name or address" />
+                  placeholder="e.g., Central Park #4" />
+              </div>
+
+              <div v-if="scheduleForm.type === 'Game'">
+                <label class="block text-sm font-semibold">Address</label>
+                <input v-model="scheduleForm.address" type="text" class="mt-1 block w-full p-2 border rounded"
+                  placeholder="1200 Jack Woods Dr, Independence, KY 41051" />
+                <p class="mt-1 text-xs text-slate-500">
+                  Where the Directions link sends people. Without it the link just
+                  searches the location name, which can land on the wrong park.
+                </p>
               </div>
 
               <div>
@@ -839,7 +849,17 @@
               <div>
                 <label class="block text-sm font-semibold">Location</label>
                 <input v-model="editScheduleForm.location" type="text" class="mt-1 block w-full p-2 border rounded"
-                  placeholder="Field name or address" />
+                  placeholder="e.g., Central Park #4" />
+              </div>
+
+              <div v-if="editScheduleForm.type === 'Game'">
+                <label class="block text-sm font-semibold">Address</label>
+                <input v-model="editScheduleForm.address" type="text" class="mt-1 block w-full p-2 border rounded"
+                  placeholder="1200 Jack Woods Dr, Independence, KY 41051" />
+                <p class="mt-1 text-xs text-slate-500">
+                  Where the Directions link sends people. Without it the link just
+                  searches the location name, which can land on the wrong park.
+                </p>
               </div>
 
               <div>
@@ -2361,6 +2381,7 @@ const scheduleForm = reactive<NewScheduleEntry>({
   league: '',
   sport: 'Baseball',
   location: null,
+  address: null,
   opponent: null,
   home_away: null,
   notes: null,
@@ -2380,6 +2401,7 @@ function openScheduleModal() {
   scheduleForm.league = ''
   scheduleForm.sport = sportStore.activeSport
   scheduleForm.location = null
+  scheduleForm.address = null
   scheduleForm.opponent = null
   scheduleForm.home_away = null
   scheduleForm.notes = null
@@ -2430,6 +2452,7 @@ const editScheduleForm = reactive<NewScheduleEntry>({
   league: '',
   sport: 'Baseball',
   location: null,
+  address: null,
   opponent: null,
   home_away: null,
   notes: null,
@@ -2448,6 +2471,7 @@ const editScheduleForm = reactive<NewScheduleEntry>({
  */
 function clearUniformForPractice(form: NewScheduleEntry) {
   if (form.type === 'Practice') {
+    form.address = null
     form.uniform_id = null
     form.jersey_color = null
     form.pants_color = null
@@ -2480,6 +2504,7 @@ function loadEditSchedule() {
       league: entry.league,
       sport: entry.sport,
       location: entry.location,
+      address: entry.address,
       opponent: entry.opponent,
       home_away: entry.home_away,
       notes: entry.notes,

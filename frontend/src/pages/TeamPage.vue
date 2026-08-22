@@ -222,7 +222,7 @@ function closePlayerModal() {
            </div>
            <a
              v-if="game.location"
-             :href="mapsUrl(game.location)"
+             :href="mapsUrl(game.location, game.address)"
              target="_blank"
              rel="noopener noreferrer"
              class="block text-xs text-slate-500 mt-1 truncate underline decoration-slate-300 underline-offset-2 hover:text-ibc-red"

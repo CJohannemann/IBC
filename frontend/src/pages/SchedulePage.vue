@@ -250,7 +250,7 @@ const formatTime = (time: string) => {
             <div v-if="selectedEntry?.location" class="flex items-start gap-2">
               <span class="text-sm font-bold text-slate-500 uppercase w-20 shrink-0">Where</span>
               <a
-                :href="mapsUrl(selectedEntry.location)"
+                :href="mapsUrl(selectedEntry.location, selectedEntry.address)"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="min-w-0 group"

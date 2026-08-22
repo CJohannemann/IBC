@@ -183,7 +183,7 @@ function closePlayerModal() {
         instead. Sits outside the navy block so nothing inherits text-white. -->
    <div
      v-if="upcomingGames.length"
-     class="bg-ibc-cream border-t-[3px] border-ibc-red border-b border-slate-200"
+     class="bg-ibc-cream border-t-[3px] border-t-ibc-red border-b border-b-slate-200"
    >
      <div class="max-w-6xl mx-auto px-4 sm:px-8 py-4">
        <div class="flex items-center justify-between gap-4 mb-3">

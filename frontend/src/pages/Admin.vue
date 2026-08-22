@@ -1,10 +1,12 @@
 <template>
-  <div class="min-h-screen flex items-start justify-center p-8">
+  <div class="min-h-screen flex items-start justify-center p-4 sm:p-8">
     <!-- Admin UI (login removed) -->
     <div class="w-full max-w-6xl">
-      <div class="flex items-center justify-between mb-8">
-        <h1 class="text-3xl font-black text-ibc-navy">Admin Dashboard</h1>
-        <div class="flex items-center gap-4 text-sm">
+      <!-- Stacks on a phone: five items in one row cannot shrink below their
+           own text, so the row pushed the whole page wider than the screen. -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
+        <h1 class="text-2xl sm:text-3xl font-black text-ibc-navy">Admin Dashboard</h1>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           <span v-if="auth.user" class="text-slate-500">
             Signed in as <span class="font-bold text-ibc-navy">{{ auth.user.username }}</span>
           </span>

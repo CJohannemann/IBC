@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen flex items-start justify-center p-8">
+  <div class="min-h-screen flex items-start justify-center p-4 sm:p-8">
     <div class="w-full max-w-md">
-      <div class="flex items-center justify-between mb-8">
-        <h1 class="text-3xl font-black text-ibc-navy">Your Account</h1>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-8">
+        <h1 class="text-2xl sm:text-3xl font-black text-ibc-navy">Your Account</h1>
         <router-link to="/admin/players" class="text-sm font-semibold text-ibc-blue hover:underline">
           &larr; Back to admin
         </router-link>

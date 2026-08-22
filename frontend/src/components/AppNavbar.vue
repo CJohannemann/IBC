@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { NavLink } from '@/types/nav'
 import { useSportStore } from '@/stores/sport'
 
@@ -13,6 +13,16 @@ const sportDropdownOpen = ref(false)
 function closeAll() {
   openItem.value = null
   sportDropdownOpen.value = false
+}
+
+// With a single sport there is nothing to switch to, so the caret and the
+// menu stay out of the way. Add a second sport and both come back on their
+// own - availableSports comes from the API, not from a constant here.
+const hasMultipleSports = computed(() => sportStore.availableSports.length > 1)
+
+function toggleSportDropdown() {
+  if (!hasMultipleSports.value) return
+  sportDropdownOpen.value = !sportDropdownOpen.value
 }
 
 function selectSport(sport: string) {
@@ -32,12 +42,14 @@ function selectSport(sport: string) {
     >
       <!-- Sport Selector -->
       <div
-        class="relative text-white text-lg font-black tracking-wide flex items-center pr-7 mr-2 border-r border-white/20 whitespace-nowrap cursor-pointer select-none"
-        @click="sportDropdownOpen = !sportDropdownOpen"
+        class="relative text-white text-lg font-black tracking-wide flex items-center pr-7 mr-2 border-r border-white/20 whitespace-nowrap select-none"
+        :class="hasMultipleSports ? 'cursor-pointer' : ''"
+        @click="toggleSportDropdown"
         @mouseleave="sportDropdownOpen = false"
       >
         {{ sportStore.activeSport }}
         <span
+          v-if="hasMultipleSports"
           class="ml-1.5 text-[10px] transition-transform duration-200 inline-block"
           :class="sportDropdownOpen ? 'rotate-180' : ''"
         >▼</span>

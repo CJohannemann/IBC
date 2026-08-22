@@ -3,9 +3,12 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getTeam } from '@/api/teams'
 import { getTeamStats } from '@/api/stats'
+import { getSchedule, type ScheduleEntry } from '@/api/schedule'
+import { useSportStore } from '@/stores/sport'
 import placeholderPlayer from '@/assets/placeholder-player.png'
 
 const route = useRoute()
+const sportStore = useSportStore()
 
 interface RosterPlayer {
   number: number
@@ -37,6 +40,59 @@ const record = computed(() =>
 
 const ageGroup = computed(() => (route.params.ageGroup as string || '10u').toLowerCase())
 
+// Dates are stored as YYYY-MM-DD, which compares correctly as text - no
+// parsing needed, and no timezone to shift the day out from under us.
+const games = ref<ScheduleEntry[]>([])
+
+const todayStr = (() => {
+  const d = new Date()
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-')
+})()
+
+// A phone only has room for the next game; a wide screen shows the two after
+// it as well, so the same list is fetched and the extras hidden by breakpoint.
+const upcomingGames = computed(() =>
+  games.value
+    .filter((g) => g.date >= todayStr)
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+    .slice(0, 3)
+)
+
+async function loadNextGame(league: string) {
+  try {
+    games.value = await getSchedule({
+      league,
+      sport: sportStore.activeSport,
+      type: 'Game',
+    })
+  } catch (e) {
+    console.error('Failed to load team schedule:', e)
+    games.value = []
+  }
+}
+
+const formatGameDate = (dateStr: string) => {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+const formatTime = (timeStr: string) => {
+  if (!timeStr) return ''
+  const [h, m] = timeStr.split(':')
+  const hour = parseInt(h)
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
+  return `${displayHour}:${m} ${ampm}`
+}
+
 async function loadRecord(league: string) {
   try {
     const stats = await getTeamStats({ league })
@@ -55,6 +111,7 @@ async function loadRecord(league: string) {
 
 async function loadTeam(league: string) {
   loadRecord(league)
+  loadNextGame(league)
 
   try {
     const data = await getTeam(league)
@@ -110,10 +167,55 @@ function closePlayerModal() {
 <template>
   <div class="min-h-screen bg-ibc-cream">
    <!-- Team Header -->
-   <div class="bg-ibc-navy text-white py-12 px-8">
-     <div class="max-w-6xl mx-auto">
-       <h1 class="text-4xl font-black uppercase tracking-widest mb-2">{{ team.name }}</h1>
-       <p class="text-ibc-gold text-lg font-bold">{{ record }} Record</p>
+   <div class="bg-ibc-navy text-white">
+     <div class="max-w-6xl mx-auto px-4 sm:px-8 py-8 sm:py-10">
+       <h1 class="text-3xl sm:text-4xl font-black uppercase tracking-widest">{{ team.name }}</h1>
+       <p class="text-ibc-gold text-lg font-bold mt-1">{{ record }} Record</p>
+     </div>
+
+     <!-- Schedule strip: the next game on a phone, the next three on a wide
+          screen. Hidden entirely once the season has no games left. -->
+     <div v-if="upcomingGames.length" class="border-t border-white/10 bg-black/20">
+       <div class="max-w-6xl mx-auto px-4 sm:px-8 py-4">
+         <div class="flex items-center justify-between gap-4 mb-3">
+           <span class="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
+             {{ upcomingGames.length === 1 ? 'Next Game' : 'Upcoming' }}
+           </span>
+           <router-link
+             to="/schedule"
+             class="text-xs font-bold text-ibc-red hover:underline shrink-0"
+           >
+             Full schedule &rarr;
+           </router-link>
+         </div>
+
+         <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3 md:divide-x md:divide-white/10">
+           <div
+             v-for="(game, i) in upcomingGames"
+             :key="game.id"
+             class="min-w-0 md:px-5 md:first:pl-0"
+             :class="{ 'hidden md:block': i === 1, 'hidden lg:block': i === 2 }"
+           >
+             <div class="flex items-baseline gap-2 flex-wrap">
+               <span class="font-black text-lg">{{ formatGameDate(game.date) }}</span>
+               <span class="text-white/60 text-sm">{{ formatTime(game.time) }}</span>
+             </div>
+             <div class="flex items-center gap-2 mt-1 min-w-0">
+               <span
+                 v-if="game.home_away"
+                 class="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0"
+                 :class="game.home_away === 'Home' ? 'bg-ibc-red text-white' : 'bg-white/15 text-white/80'"
+               >
+                 {{ game.home_away }}
+               </span>
+               <span class="font-semibold truncate">vs {{ game.opponent || 'TBD' }}</span>
+             </div>
+             <div class="text-xs text-white/50 mt-1 truncate">
+               {{ game.location || 'Location TBD' }}
+             </div>
+           </div>
+         </div>
+       </div>
      </div>
    </div>
 

@@ -261,15 +261,18 @@ const excerpt = (content: string, limit = 140) => {
 
     <!-- ================= TEAMS ================= -->
     <section v-if="leagues.length" class="max-w-5xl mx-auto px-4 sm:px-8 py-14">
-      <h2 class="text-2xl sm:text-3xl font-black text-ibc-navy uppercase tracking-widest mb-6">
+      <h2 class="text-2xl sm:text-3xl font-black text-ibc-navy uppercase tracking-widest mb-6 text-center">
         Our Teams
       </h2>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <!-- Centred rather than a fixed four-column grid: the club runs two
+           teams today, and four columns left both tiles hugging the left with
+           half the row empty. This stays centred at any number of teams. -->
+      <div class="flex flex-wrap justify-center gap-4">
         <router-link
           v-for="league in leagues"
           :key="league"
           :to="`/teams/${league}`"
-          class="bg-ibc-navy text-white rounded-lg p-6 text-center hover:bg-[#16324f] transition group"
+          class="basis-[calc(50%-0.5rem)] sm:basis-52 bg-ibc-navy text-white rounded-lg p-6 text-center hover:bg-[#16324f] transition group"
         >
           <div class="text-3xl font-black group-hover:text-ibc-red transition">
             {{ league }}

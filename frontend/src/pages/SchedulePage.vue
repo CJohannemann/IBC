@@ -117,25 +117,25 @@ const formatTime = (time: string) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-ibc-cream py-12 px-8">
+  <div class="min-h-screen bg-ibc-cream py-12 px-4 sm:px-8">
     <div class="max-w-6xl mx-auto">
       <!-- Header -->
       <h1 class="text-4xl font-black text-ibc-navy uppercase tracking-widest mb-8">Schedule</h1>
 
       <!-- Month Navigation -->
-      <div class="bg-white rounded-lg shadow p-6 mb-8">
-        <div class="flex items-center justify-between gap-4 mb-6">
+      <div class="bg-white rounded-lg shadow p-4 sm:p-6 mb-8">
+        <div class="flex items-center justify-between gap-2 sm:gap-4 mb-6">
           <button
             @click="previousMonth"
-            class="w-24 px-4 py-2 bg-ibc-navy text-white rounded font-semibold hover:bg-ibc-blue transition flex flex-col items-center gap-1"
+            class="w-20 sm:w-24 shrink-0 px-2 sm:px-4 py-2 bg-ibc-navy text-white rounded text-sm sm:text-base font-semibold hover:bg-ibc-blue transition flex flex-col items-center gap-1"
           >
             <span>Previous</span>
             <span>←</span>
           </button>
-          <h2 class="text-2xl font-black text-ibc-navy text-center flex-1">{{ monthYear }}</h2>
+          <h2 class="text-xl sm:text-2xl font-black text-ibc-navy text-center flex-1 min-w-0 break-words">{{ monthYear }}</h2>
           <button
             @click="nextMonth"
-            class="w-24 px-4 py-2 bg-ibc-navy text-white rounded font-semibold hover:bg-ibc-blue transition flex flex-col items-center gap-1"
+            class="w-20 sm:w-24 shrink-0 px-2 sm:px-4 py-2 bg-ibc-navy text-white rounded text-sm sm:text-base font-semibold hover:bg-ibc-blue transition flex flex-col items-center gap-1"
           >
             <span>Next</span>
             <span>→</span>

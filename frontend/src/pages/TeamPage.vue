@@ -5,6 +5,7 @@ import { getTeam } from '@/api/teams'
 import { getTeamStats } from '@/api/stats'
 import { getSchedule, type ScheduleEntry } from '@/api/schedule'
 import { useSportStore } from '@/stores/sport'
+import { mapsUrl } from '@/lib/maps'
 import placeholderPlayer from '@/assets/placeholder-player.png'
 
 const route = useRoute()
@@ -219,9 +220,16 @@ function closePlayerModal() {
              </span>
              <span class="font-semibold truncate text-ibc-navy">vs {{ game.opponent || 'TBD' }}</span>
            </div>
-           <div class="text-xs text-slate-500 mt-1 truncate">
-             {{ game.location || 'Location TBD' }}
-           </div>
+           <a
+             v-if="game.location"
+             :href="mapsUrl(game.location)"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="block text-xs text-slate-500 mt-1 truncate underline decoration-slate-300 underline-offset-2 hover:text-ibc-red"
+           >
+             {{ game.location }}
+           </a>
+           <div v-else class="text-xs text-slate-500 mt-1">Location TBD</div>
          </div>
        </div>
      </div>

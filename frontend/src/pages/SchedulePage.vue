@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { getSchedule, type ScheduleEntry } from '@/api/schedule'
 import { useSportStore } from '@/stores/sport'
+import { mapsUrl } from '@/lib/maps'
 
 const sportStore = useSportStore()
 
@@ -247,8 +248,18 @@ const formatTime = (time: string) => {
             </div>
 
             <div v-if="selectedEntry?.location" class="flex items-start gap-2">
-              <span class="text-sm font-bold text-slate-500 uppercase w-20">Where</span>
-              <span class="text-ibc-navy">{{ selectedEntry.location }}</span>
+              <span class="text-sm font-bold text-slate-500 uppercase w-20 shrink-0">Where</span>
+              <a
+                :href="mapsUrl(selectedEntry.location)"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="min-w-0 group"
+              >
+                <span class="text-ibc-navy underline decoration-slate-300 underline-offset-2 group-hover:text-ibc-red">
+                  {{ selectedEntry.location }}
+                </span>
+                <span class="block text-xs font-bold text-ibc-red mt-0.5">Directions &rarr;</span>
+              </a>
             </div>
 
             <div v-if="selectedEntry?.notes" class="flex items-start gap-2">

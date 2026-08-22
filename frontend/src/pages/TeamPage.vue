@@ -173,46 +173,54 @@ function closePlayerModal() {
        <p class="text-ibc-gold text-lg font-bold mt-1">{{ record }} Record</p>
      </div>
 
-     <!-- Schedule strip: the next game on a phone, the next three on a wide
-          screen. Hidden entirely once the season has no games left. -->
-     <div v-if="upcomingGames.length" class="border-t border-white/10 bg-black/20">
-       <div class="max-w-6xl mx-auto px-4 sm:px-8 py-4">
-         <div class="flex items-center justify-between gap-4 mb-3">
-           <span class="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
-             {{ upcomingGames.length === 1 ? 'Next Game' : 'Upcoming' }}
-           </span>
-           <router-link
-             to="/schedule"
-             class="text-xs font-bold text-ibc-red hover:underline shrink-0"
-           >
-             Full schedule &rarr;
-           </router-link>
-         </div>
+   </div>
 
-         <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3 md:divide-x md:divide-white/10">
-           <div
-             v-for="(game, i) in upcomingGames"
-             :key="game.id"
-             class="min-w-0 md:px-5 md:first:pl-0"
-             :class="{ 'hidden md:block': i === 1, 'hidden lg:block': i === 2 }"
-           >
-             <div class="flex items-baseline gap-2 flex-wrap">
-               <span class="font-black text-lg">{{ formatGameDate(game.date) }}</span>
-               <span class="text-white/60 text-sm">{{ formatTime(game.time) }}</span>
-             </div>
-             <div class="flex items-center gap-2 mt-1 min-w-0">
-               <span
-                 v-if="game.home_away"
-                 class="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0"
-                 :class="game.home_away === 'Home' ? 'bg-ibc-red text-white' : 'bg-white/15 text-white/80'"
-               >
-                 {{ game.home_away }}
-               </span>
-               <span class="font-semibold truncate">vs {{ game.opponent || 'TBD' }}</span>
-             </div>
-             <div class="text-xs text-white/50 mt-1 truncate">
-               {{ game.location || 'Location TBD' }}
-             </div>
+   <!-- Schedule strip: the next game on a phone, the next three on a wide
+        screen. Hidden entirely once the season has no games left.
+
+        Deliberately light rather than a second navy - a tint close to the
+        header reads as a mistake, so the seam is a red rule against cream
+        instead. Sits outside the navy block so nothing inherits text-white. -->
+   <div
+     v-if="upcomingGames.length"
+     class="bg-ibc-cream border-t-[3px] border-ibc-red border-b border-slate-200"
+   >
+     <div class="max-w-6xl mx-auto px-4 sm:px-8 py-4">
+       <div class="flex items-center justify-between gap-4 mb-3">
+         <span class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+           {{ upcomingGames.length === 1 ? 'Next Game' : 'Upcoming' }}
+         </span>
+         <router-link
+           to="/schedule"
+           class="text-xs font-bold text-ibc-red hover:underline shrink-0"
+         >
+           Full schedule &rarr;
+         </router-link>
+       </div>
+
+       <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3 md:divide-x md:divide-slate-300">
+         <div
+           v-for="(game, i) in upcomingGames"
+           :key="game.id"
+           class="min-w-0 md:px-5 md:first:pl-0"
+           :class="{ 'hidden md:block': i === 1, 'hidden lg:block': i === 2 }"
+         >
+           <div class="flex items-baseline gap-2 flex-wrap">
+             <span class="font-black text-lg text-ibc-navy">{{ formatGameDate(game.date) }}</span>
+             <span class="text-slate-600 text-sm">{{ formatTime(game.time) }}</span>
+           </div>
+           <div class="flex items-center gap-2 mt-1 min-w-0">
+             <span
+               v-if="game.home_away"
+               class="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0"
+               :class="game.home_away === 'Home' ? 'bg-ibc-red text-white' : 'bg-slate-200 text-slate-700'"
+             >
+               {{ game.home_away }}
+             </span>
+             <span class="font-semibold truncate text-ibc-navy">vs {{ game.opponent || 'TBD' }}</span>
+           </div>
+           <div class="text-xs text-slate-500 mt-1 truncate">
+             {{ game.location || 'Location TBD' }}
            </div>
          </div>
        </div>

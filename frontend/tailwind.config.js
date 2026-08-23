@@ -9,6 +9,10 @@ export default {
       colors: {
         ibc: {
           navy:    '#0c2038',
+          // Used for links on light backgrounds and as the hover state over navy,
+          // so it has to stay readable on cream and still be visibly lighter
+          // than the navy it sits on.
+          blue:    '#22558c',
           red:     '#ef4444',
           gold:    '#fbbf24',
           cream:   '#f5f1e8',

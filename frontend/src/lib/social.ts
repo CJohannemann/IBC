@@ -15,7 +15,7 @@ export interface SocialLink {
 export const socialLinks: SocialLink[] = [
   {
     name: 'Facebook',
-    url: '',
+    url: 'https://www.facebook.com/share/1GrCkw6J5S/',
     path:
       'M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 ' +
       '0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 ' +

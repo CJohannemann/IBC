@@ -8,6 +8,7 @@ export interface Coach {
   season: string
   year: number
   archive: string
+  sport?: string
 }
 
 export async function getCoaches(): Promise<Coach[]> {

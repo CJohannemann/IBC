@@ -23,6 +23,20 @@
         </div>
       </div>
 
+      <!-- Teams Section -->
+      <div class="mb-8">
+        <h2 class="text-xl font-bold text-ibc-navy mb-4 pb-2 border-b-2 border-ibc-navy">Teams</h2>
+        <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <button @click="openAddTeamModal"
+            class="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center hover:shadow-lg transition-all hover:scale-105">
+            <svg class="w-12 h-12 text-ibc-navy mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            <div class="font-bold text-ibc-navy">Add Team</div>
+          </button>
+        </div>
+      </div>
+
       <!-- Players Section -->
       <div class="mb-8">
         <h2 class="text-xl font-bold text-ibc-navy mb-4 pb-2 border-b-2 border-ibc-navy">Players</h2>
@@ -1794,6 +1808,81 @@
         </div>
       </Teleport>
 
+      <!-- Add Team Modal -->
+      <Teleport to="body">
+        <div v-if="showAddTeamModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          @click="closeAddTeamModal">
+          <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6" @click.stop>
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <h3 class="text-2xl font-black text-ibc-navy">Add Team</h3>
+                <div class="text-sm text-slate-600">A team is created together with its head coach</div>
+              </div>
+              <button @click="closeAddTeamModal" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+            </div>
+
+            <form @submit.prevent="submitAddTeam" class="space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-semibold">League</label>
+                  <input v-model="addTeamForm.league" type="text" class="mt-1 block w-full p-2 border rounded"
+                    placeholder="e.g., 12U" required @blur="addTeamForm.league = addTeamForm.league.toUpperCase()" />
+                </div>
+                <div>
+                  <!-- Free text, not a select: the sport list is built from the teams
+                       that already exist, so a dropdown could never add the first
+                       team of a new sport. -->
+                  <label class="block text-sm font-semibold">Sport</label>
+                  <input v-model="addTeamForm.sport" type="text" list="add-team-sports" required
+                    class="mt-1 block w-full p-2 border rounded" placeholder="e.g., Baseball" />
+                  <datalist id="add-team-sports">
+                    <option v-for="sp in sportStore.availableSports" :key="sp" :value="sp" />
+                  </datalist>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-semibold">Season</label>
+                  <select v-model="addTeamForm.season" class="mt-1 block w-full p-2 border rounded" required>
+                    <option disabled value="">Select season</option>
+                    <option v-for="s in seasonOptions" :key="s" :value="s">{{ s }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold">Year</label>
+                  <input v-model.number="addTeamForm.year" type="number" class="mt-1 block w-full p-2 border rounded" required />
+                </div>
+              </div>
+
+              <div class="pt-2 border-t">
+                <div class="text-sm font-bold text-ibc-navy mb-2">Head Coach</div>
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-semibold">First Name</label>
+                    <input v-model="addTeamForm.first_name" type="text" class="mt-1 block w-full p-2 border rounded" required />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold">Last Name</label>
+                    <input v-model="addTeamForm.last_name" type="text" class="mt-1 block w-full p-2 border rounded" required />
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex justify-end gap-3 pt-2">
+                <button type="button" @click="closeAddTeamModal" class="px-4 py-2 border rounded">Cancel</button>
+                <button type="submit" :disabled="savingTeam"
+                  class="px-4 py-2 bg-ibc-navy text-white rounded disabled:opacity-50">
+                  {{ savingTeam ? 'Creating...' : 'Create Team' }}
+                </button>
+              </div>
+
+              <div v-if="addTeamMessage" :class="addTeamMsgClass" class="mt-2 p-2 rounded">{{ addTeamMessage }}</div>
+            </form>
+          </div>
+        </div>
+      </Teleport>
+
       <!-- Add Coach Modal -->
       <Teleport to="body">
         <div v-if="showAddCoachModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -3299,6 +3388,105 @@ async function submitRecord() {
     recordMsgClass.value = 'bg-red-100 text-red-700'
   } finally {
     savingRecord.value = false
+  }
+}
+
+// ======================================================
+// TEAM MANAGEMENT
+// ======================================================
+
+// A team is not a table of its own - it is the (league, sport) pair carried by
+// its coaches. So creating one means creating its head coach, and the two are
+// asked for in a single form rather than making an admin infer the connection.
+const showAddTeamModal = ref(false)
+const savingTeam = ref(false)
+const addTeamMessage = ref('')
+const addTeamMsgClass = ref('')
+
+const addTeamForm = reactive({
+  league: '',
+  sport: 'Baseball',
+  season: '',
+  year: new Date().getFullYear(),
+  first_name: '',
+  last_name: '',
+  archive: 'N'
+})
+
+async function openAddTeamModal() {
+  addTeamForm.league = ''
+  addTeamForm.sport = sportStore.activeSport
+  addTeamForm.season = ''
+  addTeamForm.year = new Date().getFullYear()
+  addTeamForm.first_name = ''
+  addTeamForm.last_name = ''
+  addTeamForm.archive = 'N'
+  addTeamMessage.value = ''
+  showAddTeamModal.value = true
+
+  // Needed for the duplicate check below, which cannot run on a stale list.
+  try {
+    allCoaches.value = await getCoaches()
+  } catch (err) {
+    console.error('Failed to load coaches:', err)
+  }
+}
+
+function closeAddTeamModal() {
+  showAddTeamModal.value = false
+  addTeamMessage.value = ''
+}
+
+async function submitAddTeam() {
+  savingTeam.value = true
+  try {
+    const league = addTeamForm.league.trim().toUpperCase()
+    const sport = addTeamForm.sport.trim()
+
+    // The coaches primary key is (last_name, league, season, year), so a repeat
+    // submission fails on a constraint deep in SQLite. Catch it up here, where
+    // there is something useful to say about it.
+    const clash = allCoaches.value.some(
+      (c) =>
+        c.last_name.toLowerCase() === addTeamForm.last_name.trim().toLowerCase() &&
+        (c.league || '').toLowerCase() === league.toLowerCase() &&
+        (c.season || '').toLowerCase() === addTeamForm.season.toLowerCase() &&
+        Number(c.year) === Number(addTeamForm.year)
+    )
+    if (clash) {
+      addTeamMessage.value = 'That coach already runs this team for the season'
+      addTeamMsgClass.value = 'bg-red-100 text-red-700'
+      return
+    }
+
+    await createCoach({
+      first_name: addTeamForm.first_name.trim(),
+      last_name: addTeamForm.last_name.trim(),
+      league,
+      sport,
+      season: addTeamForm.season,
+      year: addTeamForm.year,
+      archive: 'N'
+    })
+
+    addTeamMessage.value = league + ' ' + sport + ' created'
+    addTeamMsgClass.value = 'bg-green-100 text-green-700'
+
+    // A brand new sport only becomes selectable elsewhere once the sport list
+    // is refetched, since it is derived from the coaches on file.
+    await Promise.all([
+      sportStore.fetchSports(),
+      getCoaches().then((rows) => { allCoaches.value = rows }),
+      getTeams().then((rows) => { availableTeams.value = rows })
+    ])
+
+    setTimeout(() => closeAddTeamModal(), 1500)
+  } catch (err: any) {
+    console.error('Add team error:', err)
+    addTeamMessage.value = err.response?.data?.error || 'Failed to create team'
+    addTeamMsgClass.value = 'bg-red-100 text-red-700'
+  } finally {
+    savingTeam.value = false
   }
 }
 

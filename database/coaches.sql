@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS coaches (
   season TEXT,
   year INTEGER,
   archive TEXT NOT NULL DEFAULT 'N',
+  sport TEXT NOT NULL DEFAULT 'Baseball',
   PRIMARY KEY (last_name, league, season, year)
 );
 

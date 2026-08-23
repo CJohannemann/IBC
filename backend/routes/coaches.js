@@ -13,7 +13,8 @@ module.exports = function createCoachRoutes(db, requireAdmin) {
           league,
           season,
           year,
-          archive
+          archive,
+          sport
         FROM coaches
         ORDER BY year DESC, league
       `)
@@ -33,7 +34,8 @@ module.exports = function createCoachRoutes(db, requireAdmin) {
         league,
         season,
         year,
-        archive
+        archive,
+        sport
       } = req.body
 
       await db.run(
@@ -44,9 +46,10 @@ module.exports = function createCoachRoutes(db, requireAdmin) {
           league,
           season,
           year,
-          archive
+          archive,
+          sport
         )
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
         [
           first_name,
@@ -54,7 +57,8 @@ module.exports = function createCoachRoutes(db, requireAdmin) {
           league,
           season,
           year,
-          archive || 'N'
+          archive || 'N',
+          sport || 'Baseball'
         ]
       )
 
@@ -74,7 +78,8 @@ module.exports = function createCoachRoutes(db, requireAdmin) {
       league: newLeague,
       season: newSeason,
       year: newYear,
-      archive
+      archive,
+      sport
     } = req.body
 
     try {
@@ -87,7 +92,8 @@ module.exports = function createCoachRoutes(db, requireAdmin) {
           league = ?,
           season = ?,
           year = ?,
-          archive = ?
+          archive = ?,
+          sport = COALESCE(?, sport)
         WHERE last_name = ? AND league = ? AND season = ? AND year = ?
         `,
         [
@@ -97,6 +103,7 @@ module.exports = function createCoachRoutes(db, requireAdmin) {
           newSeason,
           newYear,
           archive || 'N',
+          sport || null,
           lastName,
           league,
           season,

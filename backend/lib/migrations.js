@@ -97,11 +97,27 @@ async function addAddressToSchedule(db) {
   return ['schedule.address']
 }
 
+/**
+ * Give a coach a sport.
+ *
+ * A team is the (league, sport) pair on its coaches, so without this column
+ * every teams lookup fails outright. Existing rows predate the club taking on
+ * a second sport, which makes Baseball the right backfill.
+ */
+async function addSportToCoaches(db) {
+  if (!(await tableExists(db, 'coaches'))) return []
+  if (await columnExists(db, 'coaches', 'sport')) return []
+
+  await db.run("ALTER TABLE coaches ADD COLUMN sport TEXT NOT NULL DEFAULT 'Baseball'")
+  return ['coaches.sport']
+}
+
 async function runMigrations(db) {
   return [
     ...(await addSeasonToStats(db)),
     ...(await addUniformToSchedule(db)),
     ...(await addAddressToSchedule(db)),
+    ...(await addSportToCoaches(db)),
   ]
 }
 
@@ -109,6 +125,7 @@ module.exports = {
   runMigrations,
   addUniformToSchedule,
   addAddressToSchedule,
+  addSportToCoaches,
   addSeasonToStats,
   currentSeason,
   columnExists,

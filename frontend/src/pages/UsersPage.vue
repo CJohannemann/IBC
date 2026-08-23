@@ -121,15 +121,14 @@
 
 <script setup lang="ts">
 /**
- * Show a login time in the club's own timezone.
+ * Show a login time in the club's own timezone, in the shape it is stored.
  *
  * The column is written by SQLite's datetime('now'), which is UTC and carries
  * no zone marker - and a bare 'YYYY-MM-DD HH:MM:SS' is read as *local* time by
  * Date, so it has to be pinned to UTC before it can be converted back.
  *
  * America/New_York rather than a fixed offset, so the clock follows daylight
- * saving instead of drifting an hour wrong for most of the year. The zone is
- * printed alongside, since a bare time gives no way to tell which it is.
+ * saving instead of drifting an hour wrong for most of the year.
  */
 function formatLastLogin(value: string | null): string {
   if (!value) return 'never'
@@ -138,15 +137,23 @@ function formatLastLogin(value: string | null): string {
   const date = new Date((value.includes('T') ? value : value.replace(' ', 'T')) + (hasZone ? '' : 'Z'))
   if (Number.isNaN(date.getTime())) return value
 
-  return date.toLocaleString('en-US', {
+  // Assembled part by part rather than from a locale string, so the output is
+  // the stored format exactly and does not shift with the browser's locale.
+  // h23 keeps midnight at 00 instead of the 24 some engines produce.
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
-    month: 'short',
-    day: 'numeric',
     year: 'numeric',
-    hour: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
     minute: '2-digit',
-    timeZoneName: 'short',
-  })
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date)
+
+  const at = (type: string) => parts.find((part) => part.type === type)?.value ?? ''
+
+  return `${at('year')}-${at('month')}-${at('day')} ${at('hour')}:${at('minute')}:${at('second')}`
 }
 
 import { ref, reactive, onMounted } from 'vue'

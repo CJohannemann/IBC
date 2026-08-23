@@ -3926,7 +3926,10 @@ async function confirmDeleteCoach() {
     setTimeout(() => closeDeleteCoachModal(), 1000)
   } catch (err: any) {
     console.error('Delete coach error:', err)
-    deleteCoachMessage.value = err.response?.data?.error || 'Failed to delete coach'
+    // The refusal carries an explanation worth reading - a bare error code
+    // would not tell anyone why, or what to do instead.
+    deleteCoachMessage.value =
+      err.response?.data?.message || err.response?.data?.error || 'Failed to delete coach'
     deleteCoachMsgClass.value = 'bg-red-100 text-red-700'
   }
 }

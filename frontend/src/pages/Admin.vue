@@ -34,6 +34,15 @@
             </svg>
             <div class="font-bold text-ibc-navy">Add Team</div>
           </button>
+
+          <button @click="openArchiveTeamModal"
+            class="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center hover:shadow-lg transition-all hover:scale-105">
+            <svg class="w-12 h-12 text-amber-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            </svg>
+            <div class="font-bold text-amber-600">Archive Team</div>
+          </button>
         </div>
       </div>
 
@@ -1883,6 +1892,68 @@
         </div>
       </Teleport>
 
+      <!-- Archive Team Modal -->
+      <Teleport to="body">
+        <div v-if="showArchiveTeamModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          @click="closeArchiveTeamModal">
+          <div class="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" @click.stop>
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <h3 class="text-2xl font-black text-ibc-navy">Archive Team</h3>
+                <div class="text-sm text-slate-600">Takes a team off the site without deleting anything</div>
+              </div>
+              <button @click="closeArchiveTeamModal" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+            </div>
+
+            <div class="mb-4 p-3 rounded bg-amber-50 text-sm text-amber-900">
+              Players, stats, schedule and photos are all kept. The team stops appearing
+              on the site, and you can restore it below.
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1">Team</label>
+              <select v-model="selectedArchiveTeam" class="w-full border rounded p-2">
+                <option disabled value="">Choose a team</option>
+                <option v-for="t in activeTeams" :key="teamKey(t)" :value="teamKey(t)">
+                  {{ t.league }} {{ t.sport }} &mdash; {{ t.season }} {{ t.year }}
+                </option>
+              </select>
+              <div v-if="!activeTeams.length" class="mt-2 text-sm text-slate-500">
+                No active teams to archive.
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4">
+              <button type="button" @click="closeArchiveTeamModal" class="px-4 py-2 border rounded">Cancel</button>
+              <button type="button" @click="submitArchiveTeam" :disabled="!selectedArchiveTeam || archivingTeam"
+                class="px-4 py-2 bg-amber-600 text-white rounded disabled:opacity-50">
+                {{ archivingTeam ? 'Archiving...' : 'Archive' }}
+              </button>
+            </div>
+
+            <div v-if="archivedTeams.length" class="mt-6 pt-4 border-t">
+              <div class="text-sm font-bold text-ibc-navy mb-2">Archived</div>
+              <ul class="space-y-2">
+                <li v-for="t in archivedTeams" :key="teamKey(t)"
+                  class="flex items-center justify-between text-sm">
+                  <span class="text-slate-600">
+                    {{ t.league }} {{ t.sport }} &mdash; {{ t.season }} {{ t.year }}
+                  </span>
+                  <button type="button" @click="restoreTeam(t)" :disabled="archivingTeam"
+                    class="font-semibold text-ibc-blue hover:underline disabled:opacity-50">
+                    Restore
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div v-if="archiveTeamMessage" :class="archiveTeamMsgClass" class="mt-4 p-2 rounded">
+              {{ archiveTeamMessage }}
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
       <!-- Add Coach Modal -->
       <Teleport to="body">
         <div v-if="showAddCoachModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -2220,7 +2291,7 @@ import { usePlayerStore } from '@/stores/players'
 import { useSportStore } from '@/stores/sport'
 import { getCoaches, createCoach, updateCoach, deleteCoach, type Coach } from '@/api/coaches'
 import { getAssistants, createAssistant, updateAssistant, deleteAssistant, type Assistant } from '@/api/assistants'
-import { getTeams, type Team } from '@/api/teams'
+import { getTeams, archiveTeam, type Team } from '@/api/teams'
 import { createUniform, getUniform, deleteUniform, type NewUniformItem, type Uniform } from '@/api/uniform'
 
 const playerStore = usePlayerStore()
@@ -3488,6 +3559,108 @@ async function submitAddTeam() {
   } finally {
     savingTeam.value = false
   }
+}
+
+// A team is a (league, sport, season, year) grouping of coach rows, and a
+// season can have more than one coach, so the picker is deduped on that key
+// rather than listing a line per coach.
+interface TeamSeason {
+  league: string
+  sport: string
+  season: string
+  year: number
+  archive: string
+}
+
+const showArchiveTeamModal = ref(false)
+const archivingTeam = ref(false)
+const selectedArchiveTeam = ref('')
+const archiveTeamMessage = ref('')
+const archiveTeamMsgClass = ref('')
+const teamSeasons = ref<TeamSeason[]>([])
+
+function teamKey(t: TeamSeason) {
+  return `${t.league}|${t.sport}|${t.season}|${t.year}`
+}
+
+function toTeamSeasons(coaches: Coach[]): TeamSeason[] {
+  const seen = new Map<string, TeamSeason>()
+  for (const c of coaches) {
+    if (!c.league || !c.season) continue
+    const t = {
+      league: c.league,
+      sport: c.sport || 'Baseball',
+      season: c.season,
+      year: Number(c.year),
+      archive: c.archive
+    }
+    // An archived row must not hide a live one for the same season.
+    const key = teamKey(t)
+    const existing = seen.get(key)
+    if (!existing || (existing.archive === 'Y' && t.archive === 'N')) seen.set(key, t)
+  }
+  return [...seen.values()].sort(
+    (a, b) => b.year - a.year || a.league.localeCompare(b.league)
+  )
+}
+
+const activeTeams = computed(() => teamSeasons.value.filter((t) => t.archive === 'N'))
+const archivedTeams = computed(() => teamSeasons.value.filter((t) => t.archive === 'Y'))
+
+async function loadTeamSeasons() {
+  try {
+    teamSeasons.value = toTeamSeasons(await getCoaches())
+  } catch (err) {
+    console.error('Failed to load teams:', err)
+    teamSeasons.value = []
+  }
+}
+
+async function openArchiveTeamModal() {
+  selectedArchiveTeam.value = ''
+  archiveTeamMessage.value = ''
+  showArchiveTeamModal.value = true
+  await loadTeamSeasons()
+}
+
+function closeArchiveTeamModal() {
+  showArchiveTeamModal.value = false
+  archiveTeamMessage.value = ''
+}
+
+async function setTeamArchived(team: TeamSeason, archived: boolean) {
+  archivingTeam.value = true
+  try {
+    await archiveTeam(team.league, team.sport, team.season, team.year, archived)
+
+    archiveTeamMessage.value = `${team.league} ${team.sport} ${team.season} ${team.year} ${archived ? 'archived' : 'restored'}`
+    archiveTeamMsgClass.value = 'bg-green-100 text-green-700'
+    selectedArchiveTeam.value = ''
+
+    // The sport list and the team pickers elsewhere both drop archived teams,
+    // so they go stale the moment this succeeds.
+    await Promise.all([
+      loadTeamSeasons(),
+      sportStore.fetchSports(),
+      getCoaches().then((rows) => { allCoaches.value = rows }),
+      getTeams().then((rows) => { availableTeams.value = rows })
+    ])
+  } catch (err: any) {
+    console.error('Archive team error:', err)
+    archiveTeamMessage.value = err.response?.data?.error || 'Failed to update team'
+    archiveTeamMsgClass.value = 'bg-red-100 text-red-700'
+  } finally {
+    archivingTeam.value = false
+  }
+}
+
+function submitArchiveTeam() {
+  const team = activeTeams.value.find((t) => teamKey(t) === selectedArchiveTeam.value)
+  if (team) return setTeamArchived(team, true)
+}
+
+function restoreTeam(team: TeamSeason) {
+  return setTeamArchived(team, false)
 }
 
 // ======================================================

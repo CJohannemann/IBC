@@ -17,7 +17,7 @@ const PLAYER_COLUMNS = `
   sport
 `
 
-module.exports = function createTeamRoutes(db) {
+module.exports = function createTeamRoutes(db, requireAdmin) {
   const router = Router()
 
   // GET all teams, optionally filtered by ?sport=Baseball
@@ -58,6 +58,44 @@ module.exports = function createTeamRoutes(db) {
         ORDER BY sport
       `)
       res.json(rows.map(r => r.sport))
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ error: 'internal_error' })
+    }
+  })
+
+  // Archive or restore a team.
+  //
+  // There is no team table to delete a row from, and no foreign keys tying the
+  // players, stats and schedule to one, so a real delete would silently strand
+  // all of it. Archiving is what the club already does at the end of a season:
+  // the coaches keep the season on file, and every listing hides them.
+  router.put('/:league/archive', requireAdmin, async (req, res) => {
+    try {
+      const league = normalizeLeague(req.params.league) || ''
+      const { sport, season, year, archived } = req.body
+
+      if (!sport || !season || year === undefined || year === null) {
+        return res.status(400).json({ error: 'sport_season_year_required' })
+      }
+
+      // Scoped to one season rather than the whole league: a league carries a
+      // row per season, and restoring must not drag every past one back with it.
+      const result = await db.run(
+        `
+        UPDATE coaches
+        SET archive = ?
+        WHERE lower(league) = lower(?)
+          AND lower(sport)  = lower(?)
+          AND lower(season) = lower(?)
+          AND year          = ?
+        `,
+        [archived === false ? 'N' : 'Y', league, sport, season, year]
+      )
+
+      if (!result.changes) return res.status(404).json({ error: 'team_not_found' })
+
+      res.json({ success: true, changes: result.changes })
     } catch (err) {
       console.error(err)
       res.status(500).json({ error: 'internal_error' })

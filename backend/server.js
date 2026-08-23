@@ -85,7 +85,7 @@ async function start() {
   // ======================================================
 
   app.use('/api/players', createPlayerRoutes(db, requireAdmin))
-  app.use('/api/teams', createTeamRoutes(db))
+  app.use('/api/teams', createTeamRoutes(db, requireAdmin))
   app.use('/api/coaches', createCoachRoutes(db, requireAdmin))
   app.use('/api/assistants', createAssistantRoutes(db, requireAdmin))
   app.use('/api/games', createGameRoutes(db, requireAdmin))

@@ -25,6 +25,17 @@ export async function getSports(): Promise<string[]> {
   return data
 }
 
+export async function archiveTeam(
+  league: string,
+  sport: string,
+  season: string,
+  year: number,
+  archived: boolean
+): Promise<{ success: boolean; changes: number }> {
+  const { data } = await api.put(`/teams/${league}/archive`, { sport, season, year, archived })
+  return data
+}
+
 export async function getTeam(league: string): Promise<TeamDetail> {
   const { data } = await api.get(`/teams/${league}`)
   return data

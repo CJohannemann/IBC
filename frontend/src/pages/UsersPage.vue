@@ -86,7 +86,7 @@
                 </select>
                 <div v-if="!user.active" class="text-xs font-bold text-red-600 mt-1">Disabled</div>
               </td>
-              <td class="p-3 text-slate-600">{{ user.last_login || 'never' }}</td>
+              <td class="p-3 text-slate-600">{{ formatLastLogin(user.last_login) }}</td>
               <td class="p-3">
                 <div class="flex gap-3 justify-end">
                   <template v-if="user.id !== auth.user?.id">
@@ -120,6 +120,35 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Show a login time in the club's own timezone.
+ *
+ * The column is written by SQLite's datetime('now'), which is UTC and carries
+ * no zone marker - and a bare 'YYYY-MM-DD HH:MM:SS' is read as *local* time by
+ * Date, so it has to be pinned to UTC before it can be converted back.
+ *
+ * America/New_York rather than a fixed offset, so the clock follows daylight
+ * saving instead of drifting an hour wrong for most of the year. The zone is
+ * printed alongside, since a bare time gives no way to tell which it is.
+ */
+function formatLastLogin(value: string | null): string {
+  if (!value) return 'never'
+
+  const hasZone = /([Zz]|[+-]\d{2}:?\d{2})$/.test(value)
+  const date = new Date((value.includes('T') ? value : value.replace(' ', 'T')) + (hasZone ? '' : 'Z'))
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  })
+}
+
 import { ref, reactive, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {

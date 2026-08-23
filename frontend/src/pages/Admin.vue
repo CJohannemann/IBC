@@ -37,11 +37,11 @@
 
           <button @click="openArchiveTeamModal"
             class="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center hover:shadow-lg transition-all hover:scale-105">
-            <svg class="w-12 h-12 text-amber-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-12 h-12 text-ibc-navy mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
             </svg>
-            <div class="font-bold text-amber-600">Archive Team</div>
+            <div class="font-bold text-ibc-navy">Archive Team</div>
           </button>
         </div>
       </div>
@@ -1905,7 +1905,7 @@
               <button @click="closeArchiveTeamModal" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
             </div>
 
-            <div class="mb-4 p-3 rounded bg-amber-50 text-sm text-amber-900">
+            <div class="mb-4 p-3 rounded bg-ibc-cream text-sm text-slate-700">
               Players, stats, schedule and photos are all kept. The team stops appearing
               on the site, and you can restore it below.
             </div>
@@ -1926,7 +1926,7 @@
             <div class="flex justify-end gap-3 pt-4">
               <button type="button" @click="closeArchiveTeamModal" class="px-4 py-2 border rounded">Cancel</button>
               <button type="button" @click="submitArchiveTeam" :disabled="!selectedArchiveTeam || archivingTeam"
-                class="px-4 py-2 bg-amber-600 text-white rounded disabled:opacity-50">
+                class="px-4 py-2 bg-ibc-navy text-white rounded disabled:opacity-50">
                 {{ archivingTeam ? 'Archiving...' : 'Archive' }}
               </button>
             </div>

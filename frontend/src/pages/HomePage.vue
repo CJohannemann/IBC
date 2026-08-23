@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { getSchedule, type ScheduleEntry } from '@/api/schedule'
 import { getNews, type NewsArticle } from '@/api/news'
 import { getTeams, type Team } from '@/api/teams'
+import { activeSocialLinks } from '@/lib/social'
 import { getPlayers, type Player } from '@/api/players'
 import { useSportStore } from '@/stores/sport'
 import logo from '@/assets/Logo2.png'
@@ -16,6 +17,8 @@ const players = ref<Player[]>([])
 
 // One failing section should not blank the whole page, so each request is
 // settled on its own and a failure just leaves that list empty.
+const socials = activeSocialLinks()
+
 async function loadHome() {
   const sport = sportStore.activeSport
 
@@ -296,6 +299,28 @@ const excerpt = (content: string, limit = 140) => {
           outstanding teammates through competitive baseball, character
           development, and family-first culture.
         </p>
+
+        <!-- Hidden entirely until a platform has a url, so the club never shows
+             a "follow us" with nothing to follow. -->
+        <div v-if="socials.length" class="mt-10">
+          <p class="text-white/50 text-xs uppercase tracking-[.2em] font-bold mb-4">
+            Follow the club
+          </p>
+          <div class="flex items-center justify-center gap-3">
+            <a v-for="social in socials" :key="social.name"
+              :href="social.url" target="_blank" rel="noopener noreferrer"
+              :aria-label="`${social.name} (opens in a new tab)`"
+              class="w-11 h-11 rounded-full border border-white/25 text-white/70
+                     flex items-center justify-center transition-colors
+                     hover:border-ibc-gold hover:text-ibc-gold
+                     focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
+                     focus-visible:outline-ibc-gold">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path :d="social.path" />
+              </svg>
+            </a>
+          </div>
+        </div>
       </div>
     </section>
   </div>

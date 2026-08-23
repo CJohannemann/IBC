@@ -1878,9 +1878,28 @@
                 </div>
               </div>
 
+              <!-- Two live seasons for one league leaves the site with no way to
+                   tell which roster to show, so this blocks rather than warns. -->
+              <div v-if="liveSeasonClash" class="p-3 rounded bg-red-50 text-sm text-red-800">
+                {{ liveSeasonClash.league }} {{ liveSeasonClash.sport }} is already running
+                {{ liveSeasonClash.season }} {{ liveSeasonClash.year }}. Archive that season
+                first, then create this one.
+              </div>
+
+              <div v-else-if="rosterSource" class="p-3 rounded bg-ibc-cream text-sm text-slate-700">
+                <label class="flex items-start gap-2 cursor-pointer">
+                  <input type="checkbox" v-model="carryRoster" class="mt-1" />
+                  <span>
+                    Bring the {{ rosterSource.count }} players from
+                    <strong>{{ rosterSource.season }} {{ rosterSource.year }}</strong> across.
+                    You can add and remove players afterwards.
+                  </span>
+                </label>
+              </div>
+
               <div class="flex justify-end gap-3 pt-2">
                 <button type="button" @click="closeAddTeamModal" class="px-4 py-2 border rounded">Cancel</button>
-                <button type="submit" :disabled="savingTeam"
+                <button type="submit" :disabled="savingTeam || !!liveSeasonClash"
                   class="px-4 py-2 bg-ibc-navy text-white rounded disabled:opacity-50">
                   {{ savingTeam ? 'Creating...' : 'Create Team' }}
                 </button>
@@ -2271,7 +2290,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from 'vue'
-import { type Player } from '@/api/players'
+import { getPlayers, type Player } from '@/api/players'
 import { createScheduleEntry, updateScheduleEntry, deleteScheduleEntry, getSchedule, type NewScheduleEntry, type ScheduleEntry } from '@/api/schedule'
 import { createNews, updateNews, deleteNews, getNews, type NewNewsArticle, type NewsArticle } from '@/api/news'
 import { createSwag, updateSwag, deleteSwag, getSwag, type NewSwagItem, type SwagItem } from '@/api/swag'
@@ -2291,7 +2310,7 @@ import { usePlayerStore } from '@/stores/players'
 import { useSportStore } from '@/stores/sport'
 import { getCoaches, createCoach, updateCoach, deleteCoach, type Coach } from '@/api/coaches'
 import { getAssistants, createAssistant, updateAssistant, deleteAssistant, type Assistant } from '@/api/assistants'
-import { getTeams, archiveTeam, type Team } from '@/api/teams'
+import { getTeams, archiveTeam, copyRoster, type Team } from '@/api/teams'
 import { createUniform, getUniform, deleteUniform, type NewUniformItem, type Uniform } from '@/api/uniform'
 
 const playerStore = usePlayerStore()
@@ -3484,6 +3503,57 @@ const addTeamForm = reactive({
   archive: 'N'
 })
 
+const carryRoster = ref(true)
+const teamPlayers = ref<Player[]>([])
+
+function sameTeam(a: { league?: string; sport?: string }, league: string, sport: string) {
+  return (a.league || '').toLowerCase() === league.toLowerCase() &&
+    (a.sport || 'Baseball').toLowerCase() === sport.toLowerCase()
+}
+
+/** A league may only have one season running at a time - see the modal note. */
+const liveSeasonClash = computed(() => {
+  const league = addTeamForm.league.trim()
+  const sport = addTeamForm.sport.trim()
+  if (!league || !sport) return null
+
+  return allCoaches.value.find(
+    (c) => c.archive === 'N' && sameTeam(c, league, sport)
+  ) || null
+})
+
+/**
+ * The most recent squad for this league, whatever season it played.
+ *
+ * Offered as the starting point for the new one, since a rollover keeps most
+ * of the same players and typing eleven of them back in is the slow part.
+ */
+const rosterSource = computed(() => {
+  const league = addTeamForm.league.trim()
+  const sport = addTeamForm.sport.trim()
+  if (!league || !sport || !addTeamForm.season) return null
+
+  const order = (season: string) =>
+    ({ spring: 1, summer: 2, fall: 3 }[season.toLowerCase()] ?? 0)
+
+  const seasons = new Map<string, { season: string; year: number; count: number }>()
+  for (const p of teamPlayers.value) {
+    if (!sameTeam(p, league, sport) || !p.season) continue
+    // Not the season being created - that one is the destination.
+    if (p.season.toLowerCase() === addTeamForm.season.toLowerCase() &&
+        Number(p.year) === Number(addTeamForm.year)) continue
+
+    const key = `${p.season}|${p.year}`
+    const seen = seasons.get(key)
+    if (seen) seen.count++
+    else seasons.set(key, { season: p.season, year: Number(p.year), count: 1 })
+  }
+
+  return [...seasons.values()].sort(
+    (a, b) => b.year - a.year || order(b.season) - order(a.season)
+  )[0] || null
+})
+
 async function openAddTeamModal() {
   addTeamForm.league = ''
   addTeamForm.sport = sportStore.activeSport
@@ -3495,11 +3565,14 @@ async function openAddTeamModal() {
   addTeamMessage.value = ''
   showAddTeamModal.value = true
 
-  // Needed for the duplicate check below, which cannot run on a stale list.
+  // Both lists feed the checks below and cannot run on stale data.
+  carryRoster.value = true
   try {
-    allCoaches.value = await getCoaches()
+    const [coaches, players] = await Promise.all([getCoaches(), getPlayers()])
+    allCoaches.value = coaches
+    teamPlayers.value = players
   } catch (err) {
-    console.error('Failed to load coaches:', err)
+    console.error('Failed to load teams:', err)
   }
 }
 
@@ -3540,7 +3613,27 @@ async function submitAddTeam() {
       archive: 'N'
     })
 
-    addTeamMessage.value = league + ' ' + sport + ' created'
+    // Recorded before the copy, so a squad that fails to come across is
+    // reported as such rather than being folded into a single vague message.
+    let note = league + ' ' + sport + ' created'
+    const source = rosterSource.value
+
+    if (carryRoster.value && source) {
+      try {
+        const { copied } = await copyRoster(
+          league,
+          sport,
+          { season: source.season, year: source.year },
+          { season: addTeamForm.season, year: addTeamForm.year }
+        )
+        note += `, ${copied} players brought across`
+      } catch (err: any) {
+        console.error('Roster copy failed:', err)
+        note += ', but the roster could not be copied - add the players by hand'
+      }
+    }
+
+    addTeamMessage.value = note
     addTeamMsgClass.value = 'bg-green-100 text-green-700'
 
     // A brand new sport only becomes selectable elsewhere once the sport list

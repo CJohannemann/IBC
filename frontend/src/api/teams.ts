@@ -36,6 +36,22 @@ export async function archiveTeam(
   return data
 }
 
+export async function copyRoster(
+  league: string,
+  sport: string,
+  from: { season: string; year: number },
+  to: { season: string; year: number }
+): Promise<{ success: boolean; copied: number }> {
+  const { data } = await api.post(`/teams/${league}/roster-copy`, {
+    sport,
+    fromSeason: from.season,
+    fromYear: from.year,
+    toSeason: to.season,
+    toYear: to.year,
+  })
+  return data
+}
+
 export async function getTeam(league: string): Promise<TeamDetail> {
   const { data } = await api.get(`/teams/${league}`)
   return data

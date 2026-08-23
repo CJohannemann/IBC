@@ -102,6 +102,56 @@ module.exports = function createTeamRoutes(db, requireAdmin) {
     }
   })
 
+  // Copy a squad into a new season.
+  //
+  // Most of a roster comes back year on year, and re-entering eleven players
+  // by hand at every rollover is where the time goes. The photo path is carried
+  // across deliberately: the cleanup counts references before removing a file,
+  // so two seasons pointing at one photo is safe.
+  router.post('/:league/roster-copy', requireAdmin, async (req, res) => {
+    try {
+      const league = normalizeLeague(req.params.league) || ''
+      const { sport, fromSeason, fromYear, toSeason, toYear } = req.body
+
+      if (!sport || !fromSeason || !toSeason || fromYear == null || toYear == null) {
+        return res.status(400).json({ error: 'sport_and_both_seasons_required' })
+      }
+
+      // Refuse rather than double up: running this twice would give the season
+      // two of every player, which is tedious to unpick by hand.
+      const existing = await db.get(
+        `SELECT COUNT(*) AS n FROM players
+          WHERE lower(league) = lower(?) AND lower(sport) = lower(?)
+            AND lower(season) = lower(?) AND year = ?`,
+        [league, sport, toSeason, toYear]
+      )
+      if (existing.n) return res.status(409).json({ error: 'season_already_has_players' })
+
+      const result = await db.run(
+        `
+        INSERT INTO players (
+          player_number, first_name, last_name, favorite_food, favorite_movie,
+          bio, photo_path, league, season, year, sport
+        )
+        SELECT
+          player_number, first_name, last_name, favorite_food, favorite_movie,
+          bio, photo_path, league, ?, ?, sport
+        FROM players
+        WHERE lower(league) = lower(?)
+          AND lower(sport)  = lower(?)
+          AND lower(season) = lower(?)
+          AND year          = ?
+        `,
+        [toSeason, toYear, league, sport, fromSeason, fromYear]
+      )
+
+      res.json({ success: true, copied: result.changes })
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ error: 'internal_error' })
+    }
+  })
+
   // GET team details
   router.get('/:league', async (req, res) => {
     try {
@@ -109,6 +159,8 @@ module.exports = function createTeamRoutes(db, requireAdmin) {
       // or stale URL is cleaned up here.
       const league = (normalizeLeague(req.params.league) || '').toLowerCase()
 
+      // Ordered rather than an arbitrary LIMIT 1: if a league is ever left with
+      // two live seasons, the newest is the one the site should be showing.
       const coach = await db.get(`
         SELECT
           first_name,
@@ -119,6 +171,13 @@ module.exports = function createTeamRoutes(db, requireAdmin) {
         FROM coaches
         WHERE lower(league) = ?
           AND archive = 'N'
+        ORDER BY year DESC,
+          CASE lower(season)
+            WHEN 'fall' THEN 3
+            WHEN 'summer' THEN 2
+            WHEN 'spring' THEN 1
+            ELSE 0
+          END DESC
         LIMIT 1
       `, league)
 
@@ -137,13 +196,20 @@ module.exports = function createTeamRoutes(db, requireAdmin) {
           `, [coach.last_name, coach.league, coach.season, coach.year])
         : []
 
-      const players = await db.all(`
-        SELECT
-          ${PLAYER_COLUMNS}
-        FROM players
-        WHERE lower(league) = ?
-        ORDER BY player_number
-      `, league)
+      // Scoped to the coach's season. Without it a league accumulates every
+      // roster it has ever had, so last autumn's players sit alongside this
+      // spring's on the same page. No live season means nothing to show.
+      const players = coach
+        ? await db.all(`
+            SELECT
+              ${PLAYER_COLUMNS}
+            FROM players
+            WHERE lower(league)  = ?
+              AND lower(season)  = lower(?)
+              AND year           = ?
+            ORDER BY player_number
+          `, [league, coach.season, coach.year])
+        : []
 
       res.json({
         league: coach?.league ?? req.params.league,

@@ -28,15 +28,15 @@ onMounted(async () => {
 watch(() => sportStore.activeSport, () => loadTeams())
 
 const navLinks = computed<NavLink[]>(() => {
-  const teamChildren = teams.value.length
-    ? teams.value.map(t => ({ label: t.league, to: `/teams/${t.slug}` }))
-    : [
-        { label: '14U', to: '/teams/14u' },
-        { label: '10U', to: '/teams/10u' },
-      ]
+  // No standing fallback: these were once the only two teams, but between
+  // seasons every team can be archived, and naming them here advertised two
+  // that were not there.
+  const teamChildren = teams.value.map((t) => ({ label: t.league, to: `/teams/${t.slug}` }))
 
   return [
-    { label: 'Teams', children: teamChildren },
+    // An empty children array still renders a caret, so the whole entry goes
+    // rather than leaving a menu that opens onto nothing.
+    ...(teamChildren.length ? [{ label: 'Teams', children: teamChildren }] : []),
     { label: 'Schedule', to: '/schedule' },
     {
       label: 'Statistics',

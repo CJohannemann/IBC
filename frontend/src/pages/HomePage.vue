@@ -4,6 +4,13 @@ import { getSchedule, type ScheduleEntry } from '@/api/schedule'
 import { getNews, type NewsArticle } from '@/api/news'
 import { getTeams, type Team } from '@/api/teams'
 import { activeSocialLinks } from '@/lib/social'
+import wilsonLogo from '@/assets/sponsors/wilson.png'
+import demariniLogo from '@/assets/sponsors/demarini.png'
+import sluggerLogo from '@/assets/sponsors/louisville-slugger.png'
+import eastonLogo from '@/assets/sponsors/easton.png'
+import atecLogo from '@/assets/sponsors/atec.png'
+import jubileeLogo from '@/assets/sponsors/jubilee-contracting.png'
+import grizzyLogo from '@/assets/sponsors/grizzy.png'
 import { getPlayers, type Player } from '@/api/players'
 import { useSportStore } from '@/stores/sport'
 import logo from '@/assets/Logo2.png'
@@ -18,6 +25,18 @@ const players = ref<Player[]>([])
 // One failing section should not blank the whole page, so each request is
 // settled on its own and a failure just leaves that list empty.
 const socials = activeSocialLinks()
+
+// Recoloured to the club navy so the wall reads as one set. Add a sponsor by
+// adding a line - the grid reflows on its own.
+const sponsors = [
+  { name: 'Jubilee Contracting', logo: jubileeLogo },
+  { name: 'Grizzy', logo: grizzyLogo },
+  { name: 'Wilson', logo: wilsonLogo },
+  { name: 'DeMarini', logo: demariniLogo },
+  { name: 'Louisville Slugger', logo: sluggerLogo },
+  { name: 'Easton', logo: eastonLogo },
+  { name: 'ATEC', logo: atecLogo },
+]
 
 async function loadHome() {
   const sport = sportStore.activeSport
@@ -284,6 +303,33 @@ const excerpt = (content: string, limit = 140) => {
             Roster
           </div>
         </router-link>
+      </div>
+    </section>
+
+    <!-- ================= SPONSORS ================= -->
+    <section class="bg-white border-y border-slate-200">
+      <div class="max-w-5xl mx-auto px-4 sm:px-8 py-14">
+        <h2 class="text-2xl sm:text-3xl font-black text-ibc-navy uppercase tracking-widest mb-3 text-center">
+          Our Sponsors
+        </h2>
+        <p class="text-center text-slate-500 text-sm mb-10">
+          The brands behind our dugout
+        </p>
+
+        <!-- Each logo is contained inside an identical cell rather than sharing
+             one height: the marks range from a wide script to a stacked bulb,
+             and matching on height alone left the widest one several times the
+             size of the rest. Wrapping and centring rather than a fixed grid,
+             so an odd number does not leave a stranded row - the same reason
+             the team tiles are laid out this way. -->
+        <div class="flex flex-wrap justify-center items-center gap-x-8 gap-y-10">
+          <div v-for="sponsor in sponsors" :key="sponsor.name"
+            class="h-16 basis-[calc(50%-1rem)] sm:basis-40 flex items-center justify-center">
+            <img :src="sponsor.logo" :alt="sponsor.name"
+              loading="lazy" decoding="async"
+              class="max-h-full max-w-full object-contain" />
+          </div>
+        </div>
       </div>
     </section>
 

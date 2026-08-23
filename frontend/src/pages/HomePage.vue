@@ -11,6 +11,8 @@ import eastonLogo from '@/assets/sponsors/easton.png'
 import atecLogo from '@/assets/sponsors/atec.png'
 import jubileeLogo from '@/assets/sponsors/jubilee-contracting.png'
 import grizzyLogo from '@/assets/sponsors/grizzy.png'
+import convergentLogo from '@/assets/sponsors/convergent-solutions.png'
+import redBarnLogo from '@/assets/sponsors/red-barn-farm.png'
 import { getPlayers, type Player } from '@/api/players'
 import { useSportStore } from '@/stores/sport'
 import logo from '@/assets/Logo2.png'
@@ -26,11 +28,14 @@ const players = ref<Player[]>([])
 // settled on its own and a failure just leaves that list empty.
 const socials = activeSocialLinks()
 
-// Recoloured to the club navy so the wall reads as one set. Add a sponsor by
-// adding a line - the grid reflows on its own.
+// Every mark is recoloured to the club navy so the wall reads as one set rather
+// than nine different treatments. Where a sponsor publishes a one-colour logo of
+// their own, prefer that file over this. Add a sponsor by adding a line.
 const sponsors = [
   { name: 'Jubilee Contracting', logo: jubileeLogo },
   { name: 'Grizzy', logo: grizzyLogo },
+  { name: 'Convergent Solutions', logo: convergentLogo },
+  { name: 'Red Barn Farm Designs', logo: redBarnLogo },
   { name: 'Wilson', logo: wilsonLogo },
   { name: 'DeMarini', logo: demariniLogo },
   { name: 'Louisville Slugger', logo: sluggerLogo },

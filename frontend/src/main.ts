@@ -5,6 +5,7 @@ import App from './App.vue'
 import router from './router'
 import api from './api/client'
 import { useAuthStore } from './stores/auth'
+import { initAnalytics } from './lib/analytics'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -37,5 +38,7 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+initAnalytics()
 
 app.mount('#app')

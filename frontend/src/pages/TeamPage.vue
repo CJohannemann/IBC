@@ -170,7 +170,7 @@ function closePlayerModal() {
    <!-- Team Header -->
    <div class="bg-ibc-navy text-white">
      <div class="max-w-6xl mx-auto px-4 sm:px-8 py-8 sm:py-10">
-       <h1 class="text-3xl sm:text-4xl font-black uppercase tracking-widest">{{ team.name }}</h1>
+       <h1 class="text-3xl sm:text-4xl font-black uppercase tracking-widest text-white">{{ team.name }}</h1>
        <p class="text-ibc-gold text-lg font-bold mt-1">{{ record }} Record</p>
      </div>
 

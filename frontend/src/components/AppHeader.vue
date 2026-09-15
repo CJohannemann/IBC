@@ -12,8 +12,7 @@ import logo from '@/assets/Logo2.png'
         :src="logo"
         alt="Independence Baseball Club"
           class="h-20 w-20 object-contain rounded-full
-               drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]
-               [image-rendering:crisp-edges]"
+               drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
       />
       </router-link>
 

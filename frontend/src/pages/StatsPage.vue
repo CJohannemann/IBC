@@ -18,6 +18,8 @@ interface PitchingPlayer {
   id: string
   name: string
   battersFaced: number
+  /** Baseball notation, as GameChanger writes it: 5.1 is 5⅓ innings. */
+  inningsPitched: number | null
   /** (K - BB) / BF, as a fraction. Null when batters faced is unknown. */
   kMinusBbRate: number | null
   /** BB / BF, as a fraction. */
@@ -153,6 +155,7 @@ const pitchingData = computed<TeamPitchingStats[]>(() => {
       id: stat.id.toString(),
       name: stat.player_name,
       battersFaced: bf,
+      inningsPitched: stat.innings_pitched,
       kMinusBbRate: bf ? (strikeouts - walks) / bf : null,
       walkRate: bf ? walks / bf : null,
       strikePct: stat.strike_pct,
@@ -194,6 +197,7 @@ const getTopPitchingLeaders = (team: TeamPitchingStats) => {
 
 const formatRate = (value: number | null) => value === null ? '–' : `${(value * 100).toFixed(1)}%`
 const formatPct = (value: number | null) => value === null ? '–' : `${value.toFixed(1)}%`
+const formatIp = (value: number | null) => value === null ? '–' : value.toFixed(1)
 const formatEra = (value: number | null) => value === null ? '–' : value.toFixed(2)
 // Batting-average style: .452, not 0.452
 const formatBaa = (value: number | null) => value === null ? '–' : value.toFixed(3).replace(/^0/, '')
@@ -326,6 +330,7 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
                   <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy" title="First-pitch strike percentage">FPS %</th>
                   <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy" title="Walks ÷ batters faced">BB/BF</th>
                   <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy" title="Batters faced">BF</th>
+                  <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy" title="Innings pitched">IP</th>
                   <th class="px-6 py-4 text-center text-sm font-medium text-slate-500">ERA</th>
                   <th class="px-6 py-4 text-center text-sm font-medium text-slate-500" title="Opponent batting average">BAA</th>
                 </tr>
@@ -360,11 +365,12 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
                   <td class="px-6 py-4 text-sm font-semibold text-center text-ibc-navy">{{ formatPct(pitcher.firstPitchStrikePct) }}</td>
                   <td class="px-6 py-4 text-sm font-semibold text-center text-ibc-navy">{{ formatRate(pitcher.walkRate) }}</td>
                   <td class="px-6 py-4 text-sm text-center text-slate-700">{{ pitcher.battersFaced }}</td>
+                  <td class="px-6 py-4 text-sm text-center text-slate-700">{{ formatIp(pitcher.inningsPitched) }}</td>
                   <td class="px-6 py-4 text-sm text-center text-slate-500">{{ formatEra(pitcher.era) }}</td>
                   <td class="px-6 py-4 text-sm text-center text-slate-500">{{ formatBaa(pitcher.baa) }}</td>
                 </tr>
                 <tr v-if="getTopPitchingLeaders(team).length === 0">
-                  <td colspan="9" class="px-6 py-8 text-sm text-center text-slate-500">
+                  <td colspan="10" class="px-6 py-8 text-sm text-center text-slate-500">
                     No batters-faced numbers for this season yet. Re-upload its GameChanger CSV to rank pitchers.
                   </td>
                 </tr>

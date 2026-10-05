@@ -17,11 +17,16 @@ interface BattingPlayer {
 interface PitchingPlayer {
   id: string
   name: string
-  era: number
-  strikePercentage: number
-  walks: number
-  strikeouts: number
-  inningsPitched: number
+  battersFaced: number
+  /** (K - BB) / BF, as a fraction. Null when batters faced is unknown. */
+  kMinusBbRate: number | null
+  /** BB / BF, as a fraction. */
+  walkRate: number | null
+  /** Percentages straight from GameChanger: 54.0 means 54%. */
+  strikePct: number | null
+  firstPitchStrikePct: number | null
+  era: number | null
+  baa: number | null
 }
 
 interface TeamBattingStats {
@@ -34,7 +39,14 @@ interface TeamPitchingStats {
   name: string
   ageGroup: string
   pitchers: PitchingPlayer[]
+  /** Batters faced needed to be ranked. */
+  minBattersFaced: number
 }
+
+// Rate stats on a handful of batters say nothing, so a pitcher needs this share
+// of the team's batters faced to rank. Relative rather than a fixed count, so
+// it works in week one and in week twelve alike.
+const QUALIFYING_SHARE_OF_BF = 0.05
 
 const route = useRoute()
 
@@ -126,40 +138,41 @@ const battingData = computed<TeamBattingStats[]>(() => {
 
 const pitchingData = computed<TeamPitchingStats[]>(() => {
   const grouped = new Map<string, PitchingPlayer[]>()
-  
+
   pitchingStatsData.value.forEach(stat => {
     const league = stat.league || 'Unknown'
     if (!grouped.has(league)) {
       grouped.set(league, [])
     }
-    
-    // Calculate strike percentage (strikeouts / total batters faced) - approximation
-    const strikePercentage = stat.innings_pitched && stat.strikeouts
-      ? Math.min(stat.strikeouts / (stat.innings_pitched * 3), 1)  // Rough estimate, cap at 100%
-      : 0
-    
+
+    const bf = stat.batters_faced || 0
+    const strikeouts = stat.strikeouts || 0
+    const walks = stat.walks || 0
+
     grouped.get(league)!.push({
       id: stat.id.toString(),
       name: stat.player_name,
-      era: stat.era || 0,
-      strikePercentage,
-      walks: stat.walks || 0,
-      strikeouts: stat.strikeouts || 0,
-      inningsPitched: stat.innings_pitched || 0
+      battersFaced: bf,
+      kMinusBbRate: bf ? (strikeouts - walks) / bf : null,
+      walkRate: bf ? walks / bf : null,
+      strikePct: stat.strike_pct,
+      firstPitchStrikePct: stat.first_pitch_strike_pct,
+      era: stat.era,
+      baa: stat.baa
     })
   })
-  
-  // Sort pitchers by ERA (lowest first) within each league
+
   const result: TeamPitchingStats[] = []
   grouped.forEach((pitchers, league) => {
-    pitchers.sort((a, b) => a.era - b.era)
+    const totalBattersFaced = pitchers.reduce((sum, p) => sum + p.battersFaced, 0)
     result.push({
       name: `${league} Team`,
       ageGroup: league,
-      pitchers: pitchers
+      pitchers,
+      minBattersFaced: Math.max(1, Math.ceil(totalBattersFaced * QUALIFYING_SHARE_OF_BF))
     })
   })
-  
+
   return result.sort((a, b) => a.ageGroup.localeCompare(b.ageGroup))
 })
 
@@ -169,9 +182,21 @@ const getTopBattingLeaders = (team: TeamBattingStats) => {
   return [...team.players].sort((a, b) => b.battingAverage - a.battingAverage).slice(0, 3)
 }
 
+// Ranked by K-BB%, the best single measure of pitching skill at this age.
+// Fewer walks breaks a tie, since walks drive the most runs at 10U.
+// ERA and BAA are shown but never sorted on: they lean on the defence.
 const getTopPitchingLeaders = (team: TeamPitchingStats) => {
-  return [...team.pitchers].sort((a, b) => a.era - b.era).slice(0, 3)
+  return team.pitchers
+    .filter(p => p.kMinusBbRate !== null && p.battersFaced >= team.minBattersFaced)
+    .sort((a, b) => (b.kMinusBbRate! - a.kMinusBbRate!) || (a.walkRate! - b.walkRate!))
+    .slice(0, 3)
 }
+
+const formatRate = (value: number | null) => value === null ? '–' : `${(value * 100).toFixed(1)}%`
+const formatPct = (value: number | null) => value === null ? '–' : `${value.toFixed(1)}%`
+const formatEra = (value: number | null) => value === null ? '–' : value.toFixed(2)
+// Batting-average style: .452, not 0.452
+const formatBaa = (value: number | null) => value === null ? '–' : value.toFixed(3).replace(/^0/, '')
 
 const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allowed || 0)
 </script>
@@ -296,11 +321,13 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
                 <tr class="bg-slate-100 border-b-2 border-ibc-navy">
                   <th class="px-6 py-4 text-left text-sm font-bold text-ibc-navy">Rank</th>
                   <th class="px-6 py-4 text-left text-sm font-bold text-ibc-navy">Pitcher</th>
-                  <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy">ERA</th>
-                 <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy">Strike %</th>
-                 <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy">Walks</th>
-                  <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy">Ks</th>
-                  <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy">IP</th>
+                  <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy whitespace-nowrap" title="(Strikeouts − walks) ÷ batters faced">K-BB%</th>
+                  <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy" title="Share of all pitches that were strikes">Strike %</th>
+                  <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy" title="First-pitch strike percentage">FPS %</th>
+                  <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy" title="Walks ÷ batters faced">BB/BF</th>
+                  <th class="px-6 py-4 text-center text-sm font-bold text-ibc-navy" title="Batters faced">BF</th>
+                  <th class="px-6 py-4 text-center text-sm font-medium text-slate-500">ERA</th>
+                  <th class="px-6 py-4 text-center text-sm font-medium text-slate-500" title="Opponent batting average">BAA</th>
                 </tr>
               </thead>
               <tbody>
@@ -327,20 +354,27 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
                   </td>
                   <td class="px-6 py-4 text-sm font-semibold text-ibc-navy">{{ pitcher.name }}</td>
                   <td class="px-6 py-4 text-sm font-bold text-center text-ibc-red">
-                    {{ pitcher.era.toFixed(2) }}
+                    {{ formatRate(pitcher.kMinusBbRate) }}
                   </td>
-                  <td class="px-6 py-4 text-sm text-center text-slate-700">{{ (pitcher.strikePercentage * 100).toFixed(1) }}%</td>
-                  <td class="px-6 py-4 text-sm text-center text-slate-700">{{ pitcher.walks }}</td>
-                  <td class="px-6 py-4 text-sm font-semibold text-center text-ibc-navy">
-                    {{ pitcher.strikeouts }}
-                  </td>
-                  <td class="px-6 py-4 text-sm font-semibold text-center text-ibc-navy">
-                    {{ pitcher.inningsPitched }}
+                  <td class="px-6 py-4 text-sm font-semibold text-center text-ibc-navy">{{ formatPct(pitcher.strikePct) }}</td>
+                  <td class="px-6 py-4 text-sm font-semibold text-center text-ibc-navy">{{ formatPct(pitcher.firstPitchStrikePct) }}</td>
+                  <td class="px-6 py-4 text-sm font-semibold text-center text-ibc-navy">{{ formatRate(pitcher.walkRate) }}</td>
+                  <td class="px-6 py-4 text-sm text-center text-slate-700">{{ pitcher.battersFaced }}</td>
+                  <td class="px-6 py-4 text-sm text-center text-slate-500">{{ formatEra(pitcher.era) }}</td>
+                  <td class="px-6 py-4 text-sm text-center text-slate-500">{{ formatBaa(pitcher.baa) }}</td>
+                </tr>
+                <tr v-if="getTopPitchingLeaders(team).length === 0">
+                  <td colspan="9" class="px-6 py-8 text-sm text-center text-slate-500">
+                    No batters-faced numbers for this season yet. Re-upload its GameChanger CSV to rank pitchers.
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
+          <p class="px-6 py-3 text-xs text-slate-500 border-t border-slate-200">
+            Ranked by K-BB%: (strikeouts − walks) ÷ batters faced.
+            Minimum {{ team.minBattersFaced }} batters faced.
+          </p>
         </div>
       </div>
 

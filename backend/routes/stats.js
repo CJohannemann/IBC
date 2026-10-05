@@ -328,6 +328,8 @@ module.exports = (db, requireAdmin) => {
 
       const PITCHING_COLS = {
         IP: 54,
+        BF: 57,
+        PITCHES: 58,
         W: 59,
         L: 60,
         SV: 61,
@@ -335,7 +337,17 @@ module.exports = (db, requireAdmin) => {
         RUNS_ALLOWED: 66,
         BB: 68,
         SO: 69,
-        ERA: 72
+        ERA: 72,
+        BAA: 81,
+        STRIKE_PCT: 96,
+        FIRST_PITCH_STRIKE_PCT: 97
+      }
+
+      // Unlike `parseInt(x) || null`, keeps a real 0 - a pitcher with no walks
+      // has 0 walks, not an unknown number. GameChanger writes '-' for "none".
+      const toNumber = (value) => {
+        const parsed = parseFloat(value)
+        return isNaN(parsed) ? null : parsed
       }
 
       // The CSV carries no team record, so hold on to any hand-entered W/L/T
@@ -441,8 +453,9 @@ module.exports = (db, requireAdmin) => {
           if (!isNaN(eraValue) && !isNaN(ipValue) && ipValue > 0) {
             await db.run(
               `INSERT INTO pitching_stats 
-               (league, sport, player_name, team, era, wins, losses, saves, innings_pitched, strikeouts, walks, hits_allowed, season, year)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               (league, sport, player_name, team, era, wins, losses, saves, innings_pitched, strikeouts, walks, hits_allowed,
+                batters_faced, pitches, strike_pct, first_pitch_strike_pct, baa, season, year)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                 league,
                 sport || 'Baseball',
@@ -456,6 +469,11 @@ module.exports = (db, requireAdmin) => {
                 parseInt(row[PITCHING_COLS.SO]) || null,
                 parseInt(row[PITCHING_COLS.BB]) || null,
                 parseInt(row[PITCHING_COLS.H_ALLOWED]) || null,
+                toNumber(row[PITCHING_COLS.BF]),
+                toNumber(row[PITCHING_COLS.PITCHES]),
+                toNumber(row[PITCHING_COLS.STRIKE_PCT]),
+                toNumber(row[PITCHING_COLS.FIRST_PITCH_STRIKE_PCT]),
+                toNumber(row[PITCHING_COLS.BAA]),
                 season,
                 year
               ]

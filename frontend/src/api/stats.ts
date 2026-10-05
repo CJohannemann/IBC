@@ -33,6 +33,12 @@ export interface PitchingStat {
   strikeouts: number | null
   walks: number | null
   hits_allowed: number | null
+  batters_faced: number | null
+  pitches: number | null
+  /** Percentages as GameChanger writes them: 54.0 means 54%. */
+  strike_pct: number | null
+  first_pitch_strike_pct: number | null
+  baa: number | null
   updated_at: string
 }
 

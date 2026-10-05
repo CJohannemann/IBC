@@ -112,12 +112,40 @@ async function addSportToCoaches(db) {
   return ['coaches.sport']
 }
 
+/**
+ * Keep the pitching numbers that say who throws strikes.
+ *
+ * The GameChanger export has always carried batters faced, pitch count, strike
+ * and first-pitch-strike rates and BAA; the upload just never stored them.
+ * Rows from before this are left empty until their season is re-uploaded.
+ */
+const PITCHING_COLUMNS = {
+  batters_faced: 'INTEGER',
+  pitches: 'INTEGER',
+  strike_pct: 'REAL',
+  first_pitch_strike_pct: 'REAL',
+  baa: 'REAL',
+}
+
+async function addStrikeStatsToPitching(db) {
+  if (!(await tableExists(db, 'pitching_stats'))) return []
+
+  const added = []
+  for (const [column, type] of Object.entries(PITCHING_COLUMNS)) {
+    if (await columnExists(db, 'pitching_stats', column)) continue
+    await db.run(`ALTER TABLE pitching_stats ADD COLUMN ${column} ${type}`)
+    added.push(`pitching_stats.${column}`)
+  }
+  return added
+}
+
 async function runMigrations(db) {
   return [
     ...(await addSeasonToStats(db)),
     ...(await addUniformToSchedule(db)),
     ...(await addAddressToSchedule(db)),
     ...(await addSportToCoaches(db)),
+    ...(await addStrikeStatsToPitching(db)),
   ]
 }
 
@@ -126,6 +154,7 @@ module.exports = {
   addUniformToSchedule,
   addAddressToSchedule,
   addSportToCoaches,
+  addStrikeStatsToPitching,
   addSeasonToStats,
   currentSeason,
   columnExists,

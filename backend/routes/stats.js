@@ -76,6 +76,39 @@ async function seasonForWrite(db, body) {
   return { season: body.season || current.season, year: body.year || current.year }
 }
 
+/**
+ * Find columns by header name in a GameChanger export.
+ *
+ * Row one labels where each section starts ("Batting", "Pitching", ...); row
+ * two names the columns. Each wanted name is searched for only within its
+ * section, which runs from its label to the next one. The first section also
+ * takes the unlabelled columns before it (Number, Last, First).
+ */
+function findColumns(sectionRow, headerRow, wanted) {
+  const starts = []
+  sectionRow.forEach((label, index) => {
+    if (label) starts.push({ label, index })
+  })
+
+  const result = { missing: [] }
+  for (const [section, fields] of Object.entries(wanted)) {
+    const position = starts.findIndex((s) => s.label === section)
+    const from = position <= 0 ? 0 : starts[position].index
+    const to = position >= 0 && position + 1 < starts.length ? starts[position + 1].index : headerRow.length
+
+    result[section] = {}
+    for (const [key, header] of Object.entries(fields)) {
+      const index = position < 0 ? -1 : headerRow.indexOf(header, from)
+      if (index === -1 || index >= to) {
+        result.missing.push(`${section} ${header}`)
+      } else {
+        result[section][key] = index
+      }
+    }
+  }
+  return result
+}
+
 module.exports = (db, requireAdmin) => {
   // Which seasons have stats on file - drives the season picker.
   router.get('/seasons', async (req, res) => {
@@ -311,37 +344,52 @@ module.exports = (db, requireAdmin) => {
         return res.status(400).json({ error: 'Invalid CSV format: not enough rows' })
       }
 
-      // Known column indices for this CSV format (GameChanger stats export)
-      const BATTING_COLS = {
-        LAST: 1,
-        FIRST: 2,
-        AB: 5,
-        AVG: 6,
-        H: 10,
-        DOUBLES: 12,
-        TRIPLES: 13,
-        HR: 14,
-        RBI: 15,
-        RUNS: 16,
-        SB: 25
+      // GameChanger moves columns between exports (the Fall 2026 one dropped
+      // six velocity columns ahead of S% and FPS%), so columns are found by
+      // their header, not by position. Header names repeat across sections -
+      // H, R, BB and SO are both batting and pitching - so each is looked up
+      // only inside its own section.
+      const columns = findColumns(allRecords[0], allRecords[1], {
+        Batting: {
+          LAST: 'Last',
+          FIRST: 'First',
+          AB: 'AB',
+          AVG: 'AVG',
+          H: 'H',
+          DOUBLES: '2B',
+          TRIPLES: '3B',
+          HR: 'HR',
+          RBI: 'RBI',
+          RUNS: 'R',
+          SB: 'SB'
+        },
+        Pitching: {
+          IP: 'IP',
+          BF: 'BF',
+          PITCHES: '#P',
+          W: 'W',
+          L: 'L',
+          SV: 'SV',
+          H_ALLOWED: 'H',
+          RUNS_ALLOWED: 'R',
+          BB: 'BB',
+          SO: 'SO',
+          ERA: 'ERA',
+          BAA: 'BAA',
+          STRIKE_PCT: 'S%',
+          FIRST_PITCH_STRIKE_PCT: 'FPS%'
+        }
+      })
+
+      // Checked before anything is deleted, so a bad file leaves the season as it was
+      if (columns.missing.length) {
+        return res.status(400).json({
+          error: `CSV is missing expected columns: ${columns.missing.join(', ')}`
+        })
       }
 
-      const PITCHING_COLS = {
-        IP: 54,
-        BF: 57,
-        PITCHES: 58,
-        W: 59,
-        L: 60,
-        SV: 61,
-        H_ALLOWED: 65,
-        RUNS_ALLOWED: 66,
-        BB: 68,
-        SO: 69,
-        ERA: 72,
-        BAA: 81,
-        STRIKE_PCT: 96,
-        FIRST_PITCH_STRIKE_PCT: 97
-      }
+      const BATTING_COLS = columns.Batting
+      const PITCHING_COLS = columns.Pitching
 
       // Unlike `parseInt(x) || null`, keeps a real 0 - a pitcher with no walks
       // has 0 walks, not an unknown number. GameChanger writes '-' for "none".

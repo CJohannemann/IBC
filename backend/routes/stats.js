@@ -152,15 +152,17 @@ module.exports = (db, requireAdmin) => {
       const names = (await db.all(`
         SELECT DISTINCT player_name FROM batting_stats
         UNION SELECT DISTINCT player_name FROM pitching_stats
+        UNION SELECT DISTINCT player_name FROM fielding_stats
       `)).map((r) => r.player_name).filter((n) => playerSlug(n) === slug)
 
       const marks = names.map(() => '?').join(', ')
-      const [batting, pitching] = names.length
+      const [batting, pitching, fielding] = names.length
         ? await Promise.all([
             db.all(`SELECT * FROM batting_stats WHERE player_name IN (${marks})`, names),
             db.all(`SELECT * FROM pitching_stats WHERE player_name IN (${marks})`, names),
+            db.all(`SELECT * FROM fielding_stats WHERE player_name IN (${marks})`, names),
           ])
-        : [[], []]
+        : [[], [], []]
 
       const seasons = new Map()
       const seasonFor = (row) => {
@@ -174,12 +176,14 @@ module.exports = (db, requireAdmin) => {
             name: row.player_name,
             batting: null,
             pitching: null,
+            fielding: null,
           })
         }
         return seasons.get(key)
       }
       for (const row of batting) seasonFor(row).batting ??= row
       for (const row of pitching) seasonFor(row).pitching ??= row
+      for (const row of fielding) seasonFor(row).fielding ??= row
 
       const career = [...seasons.values()].sort(bySeason)
 
@@ -422,7 +426,10 @@ module.exports = (db, requireAdmin) => {
         columns: false, // Get raw arrays
         skip_empty_lines: true,
         trim: true,
-        relax_column_count: true
+        relax_column_count: true,
+        // Some exports start with a byte-order mark, which otherwise fails
+        // the parse on the very first field.
+        bom: true
       })
 
       if (allRecords.length < 3) {
@@ -476,6 +483,24 @@ module.exports = (db, requireAdmin) => {
       const BATTING_COLS = columns.Batting
       const PITCHING_COLS = columns.Pitching
 
+      // Fielding is optional: an export without the section still uploads its
+      // batting and pitching. Within it the names are unique - the catching SB
+      // and the position C are the first of each after the Fielding label.
+      const fieldingColumns = findColumns(allRecords[0], allRecords[1], {
+        Fielding: {
+          TC: 'TC', PO: 'PO', A: 'A', E: 'E', FPCT: 'FPCT', DP: 'DP',
+          INN: 'INN', PB: 'PB', SB: 'SB', CS: 'CS',
+          P: 'P', C: 'C', B1: '1B', B2: '2B', B3: '3B', SS: 'SS',
+          LF: 'LF', CF: 'CF', RF: 'RF', SF: 'SF', TOTAL: 'Total',
+        },
+      })
+      const FIELDING_COLS = fieldingColumns.Fielding
+      // Without the basic line there is nothing worth keeping; the catching and
+      // position columns are each optional on top of it.
+      const hasFielding = ['TC', 'PO', 'A', 'E'].every((k) => FIELDING_COLS[k] !== undefined)
+      const field = (row, key) =>
+        FIELDING_COLS[key] === undefined ? null : toNumber(row[FIELDING_COLS[key]])
+
       // Unlike `parseInt(x) || null`, keeps a real 0 - a pitcher with no walks
       // has 0 walks, not an unknown number. GameChanger writes '-' for "none".
       const toNumber = (value) => {
@@ -495,7 +520,7 @@ module.exports = (db, requireAdmin) => {
       // A GameChanger export is the full picture for its season, so replacing
       // is correct - but only within that season. Without the season and year
       // here, uploading a new season would delete the previous one.
-      for (const table of ['batting_stats', 'pitching_stats', 'team_stats']) {
+      for (const table of ['batting_stats', 'pitching_stats', 'team_stats', 'fielding_stats']) {
         await db.run(
           `DELETE FROM ${table}
             WHERE lower(league) = ? AND lower(sport) = ? AND season = ? AND year = ?`,
@@ -505,6 +530,7 @@ module.exports = (db, requireAdmin) => {
 
       let battingCount = 0
       let pitchingCount = 0
+      let fieldingCount = 0
       const teamStatsMap = new Map()
 
       // Process data rows (starting from row 3, index 2)
@@ -629,6 +655,32 @@ module.exports = (db, requireAdmin) => {
             }
           }
         }
+
+        // Fielding, for anyone who handled a chance or played an inning.
+        if (hasFielding) {
+          const chances = field(row, 'TC')
+          const innings = field(row, 'TOTAL')
+          if (chances > 0 || innings > 0) {
+            await db.run(
+              `INSERT INTO fielding_stats
+               (league, sport, player_name, team, season, year,
+                total_chances, putouts, assists, errors, fielding_pct, double_plays,
+                catcher_innings, passed_balls, stolen_bases_allowed, caught_stealing,
+                inn_p, inn_c, inn_1b, inn_2b, inn_3b, inn_ss, inn_lf, inn_cf, inn_rf, inn_sf, inn_total)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                league, sport || 'Baseball', playerName, teamName, season, year,
+                chances, field(row, 'PO'), field(row, 'A'), field(row, 'E'),
+                field(row, 'FPCT'), field(row, 'DP'),
+                field(row, 'INN'), field(row, 'PB'), field(row, 'SB'), field(row, 'CS'),
+                field(row, 'P'), field(row, 'C'), field(row, 'B1'), field(row, 'B2'), field(row, 'B3'),
+                field(row, 'SS'), field(row, 'LF'), field(row, 'CF'), field(row, 'RF'), field(row, 'SF'),
+                innings,
+              ]
+            )
+            fieldingCount++
+          }
+        }
       }
 
       // Insert team stats (one team per file)
@@ -662,6 +714,7 @@ module.exports = (db, requireAdmin) => {
         success: true, 
         batting: battingCount,
         pitching: pitchingCount,
+        fielding: fieldingCount,
         teams: teamCount
       })
     } catch (err) {

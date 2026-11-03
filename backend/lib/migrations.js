@@ -139,6 +139,56 @@ async function addStrikeStatsToPitching(db) {
   return added
 }
 
+/**
+ * Somewhere to keep fielding.
+ *
+ * The GameChanger export has always carried a Fielding section - chances,
+ * putouts, assists, errors, the catching numbers and innings at each position
+ * - and the upload ignored it. Its own table rather than more columns on
+ * batting_stats, since a player can field without batting and the other way
+ * round. Seasons uploaded before this have no rows until re-uploaded.
+ *
+ * Innings are stored as GameChanger writes them: 5.1 is 5 1/3.
+ */
+async function createFieldingStats(db) {
+  if (await tableExists(db, 'fielding_stats')) return []
+
+  await db.run(`
+    CREATE TABLE fielding_stats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      league TEXT NOT NULL,
+      sport TEXT NOT NULL DEFAULT 'Baseball',
+      player_name TEXT NOT NULL,
+      team TEXT,
+      season TEXT,
+      year INTEGER,
+      total_chances INTEGER,
+      putouts INTEGER,
+      assists INTEGER,
+      errors INTEGER,
+      fielding_pct REAL,
+      double_plays INTEGER,
+      catcher_innings REAL,
+      passed_balls INTEGER,
+      stolen_bases_allowed INTEGER,
+      caught_stealing INTEGER,
+      inn_p REAL,
+      inn_c REAL,
+      inn_1b REAL,
+      inn_2b REAL,
+      inn_3b REAL,
+      inn_ss REAL,
+      inn_lf REAL,
+      inn_cf REAL,
+      inn_rf REAL,
+      inn_sf REAL,
+      inn_total REAL,
+      updated_at TEXT DEFAULT (datetime('now'))
+    )
+  `)
+  return ['fielding_stats']
+}
+
 async function runMigrations(db) {
   return [
     ...(await addSeasonToStats(db)),
@@ -146,6 +196,7 @@ async function runMigrations(db) {
     ...(await addAddressToSchedule(db)),
     ...(await addSportToCoaches(db)),
     ...(await addStrikeStatsToPitching(db)),
+    ...(await createFieldingStats(db)),
   ]
 }
 
@@ -155,6 +206,7 @@ module.exports = {
   addAddressToSchedule,
   addSportToCoaches,
   addStrikeStatsToPitching,
+  createFieldingStats,
   addSeasonToStats,
   currentSeason,
   columnExists,

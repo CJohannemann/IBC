@@ -81,7 +81,39 @@ export async function getTeamStats(params?: { league?: string; sport?: string; s
   return data
 }
 
-/** One season of a player's career - either side can be missing. */
+/**
+ * One player's fielding for a season, from the export's Fielding section.
+ * Innings are GameChanger notation: 5.1 is 5 1/3.
+ */
+export interface FieldingStat {
+  id: number
+  league: string
+  sport: string
+  player_name: string
+  total_chances: number | null
+  putouts: number | null
+  assists: number | null
+  errors: number | null
+  fielding_pct: number | null
+  double_plays: number | null
+  catcher_innings: number | null
+  passed_balls: number | null
+  stolen_bases_allowed: number | null
+  caught_stealing: number | null
+  inn_p: number | null
+  inn_c: number | null
+  inn_1b: number | null
+  inn_2b: number | null
+  inn_3b: number | null
+  inn_ss: number | null
+  inn_lf: number | null
+  inn_cf: number | null
+  inn_rf: number | null
+  inn_sf: number | null
+  inn_total: number | null
+}
+
+/** One season of a player's career - any side can be missing. */
 export interface PlayerSeason {
   league: string
   sport: string
@@ -89,6 +121,8 @@ export interface PlayerSeason {
   year: number | null
   batting: BattingStat | null
   pitching: PitchingStat | null
+  /** Null for seasons uploaded before fielding was kept. */
+  fielding: FieldingStat | null
 }
 
 export interface PlayerCareer {
@@ -133,7 +167,7 @@ export async function uploadTeamStats(
   sport: string,
   season: string,
   year: number
-): Promise<{ success: boolean; batting: number; pitching: number; teams: number }> {
+): Promise<{ success: boolean; batting: number; pitching: number; fielding?: number; teams: number }> {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('league', league)

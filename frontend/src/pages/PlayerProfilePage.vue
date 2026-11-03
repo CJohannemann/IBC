@@ -99,6 +99,63 @@ const pitchingTotals = computed(() => {
   }
 })
 
+// ---- fielding ------------------------------------------------------------
+
+type FieldingRow = NonNullable<PlayerSeason['fielding']>
+
+const POSITIONS: [string, keyof FieldingRow][] = [
+  ['P', 'inn_p'], ['C', 'inn_c'], ['1B', 'inn_1b'], ['2B', 'inn_2b'], ['3B', 'inn_3b'],
+  ['SS', 'inn_ss'], ['LF', 'inn_lf'], ['CF', 'inn_cf'], ['RF', 'inn_rf'], ['SF', 'inn_sf'],
+]
+
+/** "C 26.0 · P 20.0 · CF 18.1": where they played, most innings first. */
+function positionsLine(outsByPosition: Map<string, number>) {
+  return [...outsByPosition.entries()]
+    .filter(([, outs]) => outs > 0)
+    .sort((a, b) => b[1] - a[1])
+    // A non-breaking space, so a wrap never strands "1B" from its innings.
+    .map(([pos, outs]) => `${pos}\u00a0${fromOuts(outs)}`)
+    .join(' · ') || '–'
+}
+const positionOuts = (f: FieldingRow) =>
+  new Map(POSITIONS.map(([pos, key]) => [pos, toOuts(f[key] as number | null)]))
+
+const fieldingSeasons = computed(() => (career.value?.seasons || []).filter((s) => s.fielding))
+
+const fieldingTotals = computed(() => {
+  let tc = 0, po = 0, a = 0, e = 0, dp = 0
+  const outs = new Map<string, number>()
+  for (const s of fieldingSeasons.value) {
+    const f = s.fielding!
+    tc += n(f.total_chances)
+    po += n(f.putouts)
+    a += n(f.assists)
+    e += n(f.errors)
+    dp += n(f.double_plays)
+    for (const [pos, o] of positionOuts(f)) outs.set(pos, (outs.get(pos) || 0) + o)
+  }
+  // Worked out from the totals rather than averaged: a .900 on 10 chances
+  // and a .700 on 60 are not an .800 fielder.
+  return { tc, po, a, e, dp, fpct: tc ? (po + a) / tc : null, positions: positionsLine(outs) }
+})
+
+// Catching gets its own table, and only for players who caught.
+const caught = (f: FieldingRow | null) => !!f && (n(f.catcher_innings) > 0 || n(f.inn_c) > 0)
+const catchingSeasons = computed(() => (career.value?.seasons || []).filter((s) => caught(s.fielding)))
+const csPct = (sb: number, cs: number) => (sb + cs ? cs / (sb + cs) : null)
+
+const catchingTotals = computed(() => {
+  let outs = 0, pb = 0, sb = 0, cs = 0
+  for (const s of catchingSeasons.value) {
+    const f = s.fielding!
+    outs += toOuts(f.catcher_innings ?? f.inn_c)
+    pb += n(f.passed_balls)
+    sb += n(f.stolen_bases_allowed)
+    cs += n(f.caught_stealing)
+  }
+  return { inn: fromOuts(outs), pb, sb, cs, pct: csPct(sb, cs) }
+})
+
 const formatRate = (v: number | null) => (v == null ? '–' : `${(v * 100).toFixed(1)}%`)
 const formatPct = (v: number | null | undefined) => (v == null ? '–' : `${v.toFixed(1)}%`)
 const formatIp = (v: number | null | undefined) => (v == null ? '–' : v.toFixed(1))
@@ -261,6 +318,108 @@ const tdFirst = `${cell} text-sm text-left`
                   <td :class="td">{{ pitchingTotals.w }}-{{ pitchingTotals.l }}</td>
                   <td :class="td">{{ pitchingTotals.sv }}</td>
                   <td :class="td">–</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Fielding -->
+        <section v-if="fieldingSeasons.length" class="bg-white rounded-lg shadow overflow-hidden">
+          <h2 class="bg-ibc-navy text-white px-4 sm:px-8 py-4 text-xl font-black uppercase tracking-wide">Fielding</h2>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="bg-slate-100 border-b-2 border-ibc-navy">
+                  <th :class="thFirst">Season</th>
+                  <th :class="th">Team</th>
+                  <th :class="th" title="Fielding percentage: (putouts + assists) ÷ total chances">FPCT</th>
+                  <th :class="th" title="Total chances">TC</th>
+                  <th :class="th" title="Putouts">PO</th>
+                  <th :class="th" title="Assists">A</th>
+                  <th :class="th" title="Errors">E</th>
+                  <th :class="th" title="Double plays">DP</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="s in fieldingSeasons" :key="`${s.league}-${s.season}-${s.year}`" class="border-b border-slate-200">
+                  <td :class="tdFirst" class="font-semibold text-ibc-navy">{{ seasonLabel(s) }}</td>
+                  <td :class="td">{{ s.league }}</td>
+                  <td :class="td" class="font-bold text-ibc-red">{{ formatAvg(s.fielding!.fielding_pct) }}</td>
+                  <td :class="td">{{ n(s.fielding!.total_chances) }}</td>
+                  <td :class="td">{{ n(s.fielding!.putouts) }}</td>
+                  <td :class="td">{{ n(s.fielding!.assists) }}</td>
+                  <td :class="td">{{ n(s.fielding!.errors) }}</td>
+                  <td :class="td">{{ n(s.fielding!.double_plays) }}</td>
+                </tr>
+                <tr v-if="fieldingSeasons.length > 1" class="bg-slate-50 font-bold">
+                  <td :class="tdFirst" class="text-ibc-navy">Career</td>
+                  <td :class="td"></td>
+                  <td :class="td" class="text-ibc-red">{{ formatAvg(fieldingTotals.fpct) }}</td>
+                  <td :class="td">{{ fieldingTotals.tc }}</td>
+                  <td :class="td">{{ fieldingTotals.po }}</td>
+                  <td :class="td">{{ fieldingTotals.a }}</td>
+                  <td :class="td">{{ fieldingTotals.e }}</td>
+                  <td :class="td">{{ fieldingTotals.dp }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Kept out of the table so it wraps on a phone instead of sitting
+               six columns off-screen: where they play is what a scout asks first. -->
+          <div class="px-4 sm:px-8 py-4 border-t border-slate-200">
+            <h3 class="text-xs font-bold text-ibc-navy uppercase tracking-wider mb-2">Positions (innings, most first)</h3>
+            <dl class="space-y-1 text-sm">
+              <div v-for="s in fieldingSeasons" :key="`pos-${s.league}-${s.season}-${s.year}`" class="flex flex-wrap gap-x-3">
+                <dt class="font-semibold text-ibc-navy">{{ seasonLabel(s) }}</dt>
+                <dd class="text-slate-700">{{ positionsLine(positionOuts(s.fielding!)) }}</dd>
+              </div>
+              <div v-if="fieldingSeasons.length > 1" class="flex flex-wrap gap-x-3 font-bold">
+                <dt class="text-ibc-navy">Career</dt>
+                <dd class="text-slate-700">{{ fieldingTotals.positions }}</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
+        <!-- Catching: only for players who caught -->
+        <section v-if="catchingSeasons.length" class="bg-white rounded-lg shadow overflow-hidden">
+          <h2 class="bg-ibc-navy text-white px-4 sm:px-8 py-4 text-xl font-black uppercase tracking-wide">Catching</h2>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="bg-slate-100 border-b-2 border-ibc-navy">
+                  <th :class="thFirst">Season</th>
+                  <th :class="th">Team</th>
+                  <th :class="th" title="Innings caught">INN</th>
+                  <th :class="th" title="Passed balls">PB</th>
+                  <th :class="th" title="Stolen bases allowed out of attempts">SB-ATT</th>
+                  <th :class="th" title="Runners caught stealing">CS</th>
+                  <th :class="th" title="Caught stealing ÷ steal attempts">CS%</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="s in catchingSeasons" :key="`${s.league}-${s.season}-${s.year}`" class="border-b border-slate-200">
+                  <td :class="tdFirst" class="font-semibold text-ibc-navy">{{ seasonLabel(s) }}</td>
+                  <td :class="td">{{ s.league }}</td>
+                  <td :class="td">{{ formatIp(s.fielding!.catcher_innings ?? s.fielding!.inn_c) }}</td>
+                  <td :class="td">{{ n(s.fielding!.passed_balls) }}</td>
+                  <td :class="td">
+                    {{ n(s.fielding!.stolen_bases_allowed) }}-{{ n(s.fielding!.stolen_bases_allowed) + n(s.fielding!.caught_stealing) }}
+                  </td>
+                  <td :class="td">{{ n(s.fielding!.caught_stealing) }}</td>
+                  <td :class="td" class="font-bold text-ibc-red">
+                    {{ formatRate(csPct(n(s.fielding!.stolen_bases_allowed), n(s.fielding!.caught_stealing))) }}
+                  </td>
+                </tr>
+                <tr v-if="catchingSeasons.length > 1" class="bg-slate-50 font-bold">
+                  <td :class="tdFirst" class="text-ibc-navy">Career</td>
+                  <td :class="td"></td>
+                  <td :class="td">{{ catchingTotals.inn }}</td>
+                  <td :class="td">{{ catchingTotals.pb }}</td>
+                  <td :class="td">{{ catchingTotals.sb }}-{{ catchingTotals.sb + catchingTotals.cs }}</td>
+                  <td :class="td">{{ catchingTotals.cs }}</td>
+                  <td :class="td" class="text-ibc-red">{{ formatRate(catchingTotals.pct) }}</td>
                 </tr>
               </tbody>
             </table>

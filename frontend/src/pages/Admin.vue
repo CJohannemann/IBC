@@ -3374,7 +3374,7 @@ async function submitStats() {
     )
 
     if (result) {
-      statsMessage.value = `Successfully uploaded! Batting: ${result.batting}, Pitching: ${result.pitching}, Teams: ${result.teams}`
+      statsMessage.value = `Successfully uploaded! Batting: ${result.batting}, Pitching: ${result.pitching}, Fielding: ${result.fielding ?? 0}, Teams: ${result.teams}`
       statsMsgClass.value = 'bg-green-100 text-green-700'
       setTimeout(() => closeStatsModal(), 3000)
     }

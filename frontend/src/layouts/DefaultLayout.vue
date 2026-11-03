@@ -2,13 +2,14 @@
 import AppHeader from '@/components/AppHeader.vue'
 import AppNavbar from '@/components/AppNavbar.vue'
 import type { NavLink } from '@/types/nav'
-import { getTeams } from '@/api/teams'
+import { getTeams, getTeamSeasons } from '@/api/teams'
 import { useSportStore } from '@/stores/sport'
 
 import { ref, computed, onMounted, watch } from 'vue'
 
 const sportStore = useSportStore()
 const teams = ref<Array<{ league: string; slug: string }>>([])
+const hasPastSeasons = ref(false)
 
 async function loadTeams() {
   try {
@@ -16,6 +17,12 @@ async function loadTeams() {
     teams.value = (data || []).map((t) => ({ league: String(t.league), slug: String(t.league).toLowerCase() }))
   } catch (e) {
     console.error('Failed to load teams for nav:', e)
+  }
+  try {
+    const seasons = await getTeamSeasons(sportStore.activeSport)
+    hasPastSeasons.value = seasons.some((s) => s.archived)
+  } catch (e) {
+    console.error('Failed to load past seasons for nav:', e)
   }
 }
 
@@ -31,7 +38,12 @@ const navLinks = computed<NavLink[]>(() => {
   // No standing fallback: these were once the only two teams, but between
   // seasons every team can be archived, and naming them here advertised two
   // that were not there.
-  const teamChildren = teams.value.map((t) => ({ label: t.league, to: `/teams/${t.slug}` }))
+  // Past Seasons sits at the foot of the list, so an archived team stays one
+  // tap from the menu even when no team is currently playing.
+  const teamChildren = [
+    ...teams.value.map((t) => ({ label: t.league, to: `/teams/${t.slug}` })),
+    ...(hasPastSeasons.value ? [{ label: 'Past Seasons', to: '/past-seasons' }] : []),
+  ]
 
   return [
     // An empty children array still renders a caret, so the whole entry goes

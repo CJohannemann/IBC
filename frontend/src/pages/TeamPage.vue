@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getTeam } from '@/api/teams'
+import {
+  getTeam,
+  getTeamSeasons,
+  parseSeasonSlug,
+  seasonSlug,
+  formatRecord,
+  type TeamSeasonSummary,
+} from '@/api/teams'
 import { getTeamStats } from '@/api/stats'
 import { getSchedule, type ScheduleEntry } from '@/api/schedule'
 import { useSportStore } from '@/stores/sport'
@@ -34,7 +41,39 @@ const team = reactive({
   ties: 0,
   // False once the team is archived: there is no season, so no record to show.
   hasSeason: false,
+  season: '',
+  year: null as number | null,
+  // A past season, opened from its own link rather than the live team page.
+  archived: false,
+  // Whether a record was ever entered. A new season shows 0-0 regardless; a
+  // past one with nothing entered shows no record rather than a made-up 0-0.
+  hasRecord: false,
 })
+
+// /teams/10u/fall-2026 pins the page to that season; /teams/10u is the live one.
+const pinnedSeason = computed(() => parseSeasonSlug(route.params.season as string | undefined))
+
+// Every season this team has had, for the past-seasons list and the way back
+// to the live team from an old one.
+const allSeasons = ref<TeamSeasonSummary[]>([])
+const sameLeague = (s: TeamSeasonSummary) => s.league.toLowerCase() === ageGroup.value
+const liveSeason = computed(() => allSeasons.value.find((s) => sameLeague(s) && !s.archived) || null)
+const pastSeasons = computed(() =>
+  allSeasons.value.filter((s) =>
+    sameLeague(s) && s.archived &&
+    // Not the one already on screen.
+    !(team.archived && s.season.toLowerCase() === team.season.toLowerCase() && s.year === team.year)
+  )
+)
+
+async function loadSeasons() {
+  try {
+    allSeasons.value = await getTeamSeasons(sportStore.activeSport)
+  } catch (e) {
+    console.error('Failed to load past seasons:', e)
+    allSeasons.value = []
+  }
+}
 
 const record = computed(() =>
   team.ties > 0
@@ -104,6 +143,7 @@ async function loadRecord(league: string, season: string | null, year: number | 
   team.wins = 0
   team.losses = 0
   team.ties = 0
+  team.hasRecord = false
   if (!season || year == null) return
 
   try {
@@ -113,6 +153,7 @@ async function loadRecord(league: string, season: string | null, year: number | 
     team.wins = teamStat?.wins || 0
     team.losses = teamStat?.losses || 0
     team.ties = teamStat?.ties || 0
+    team.hasRecord = !!teamStat
   } catch (e) {
     console.error('Failed to load team record:', e)
     team.wins = 0
@@ -121,17 +162,26 @@ async function loadRecord(league: string, season: string | null, year: number | 
   }
 }
 
-async function loadTeam(league: string) {
+// Navigating between seasons fires loads back to back; only the newest may
+// write to the page, or a slow earlier one could land on top of it.
+let loadToken = 0
+
+async function loadTeam(league: string, pinned: { season: string; year: number } | null) {
+  const token = ++loadToken
   loadNextGame(league)
 
   try {
-    const data = await getTeam(league)
+    const data = await getTeam(league, pinned)
+    if (token !== loadToken) return
 
     const leagueName = (data.league || league).toString()
     team.name = `${leagueName.toUpperCase()} Team`
     team.ageGroup = leagueName
     team.headCoach = data.headCoach || null
     team.hasSeason = !!data.season
+    team.season = data.season || ''
+    team.year = data.year
+    team.archived = !!data.archived
     loadRecord(league, data.season, data.year)
     team.assistantCoaches = data.assistantCoaches || []
     team.roster = (data.players || []).map((p) => ({
@@ -145,18 +195,23 @@ async function loadTeam(league: string) {
       bio: p.bio,
     }))
   } catch (e) {
+    if (token !== loadToken) return
     console.error('Failed to load team:', e)
     team.name = `${league.toUpperCase()} Team`
     team.ageGroup = league
     team.headCoach = null
     team.hasSeason = false
+    team.season = ''
+    team.year = null
+    team.archived = false
     loadRecord(league, null, null)
     team.assistantCoaches = []
     team.roster = []
   }
 }
 
-watch(ageGroup, (v) => loadTeam(v), { immediate: true })
+watch([ageGroup, pinnedSeason], ([league, pinned]) => loadTeam(league, pinned), { immediate: true })
+watch(() => sportStore.activeSport, loadSeasons, { immediate: true })
 
 const selectedPlayer = ref<RosterPlayer | null>(null)
 const showPlayerModal = ref(false)
@@ -185,7 +240,10 @@ function closePlayerModal() {
    <div class="bg-ibc-navy text-white">
      <div class="max-w-6xl mx-auto px-4 sm:px-8 py-8 sm:py-10">
        <h1 class="text-3xl sm:text-4xl font-black uppercase tracking-widest text-white">{{ team.name }}</h1>
-       <p v-if="team.hasSeason" class="text-ibc-gold text-lg font-bold mt-1">{{ record }} Record</p>
+       <p v-if="team.archived" class="text-white/70 text-sm font-bold uppercase tracking-widest mt-2">
+         {{ team.season }} {{ team.year }} season
+       </p>
+       <p v-if="team.hasSeason && (!team.archived || team.hasRecord)" class="text-ibc-gold text-lg font-bold mt-1">{{ record }} Record</p>
      </div>
 
    </div>
@@ -197,7 +255,7 @@ function closePlayerModal() {
         header reads as a mistake, so the seam is a red rule against cream
         instead. Sits outside the navy block so nothing inherits text-white. -->
    <div
-     v-if="upcomingGames.length"
+     v-if="upcomingGames.length && !team.archived"
      class="bg-ibc-cream border-t-[3px] border-t-ibc-red border-b border-b-slate-200"
    >
      <div class="max-w-6xl mx-auto px-4 sm:px-8 py-4">
@@ -249,8 +307,39 @@ function closePlayerModal() {
      </div>
    </div>
 
+   <!-- A past season: say so, and offer the way back to the current team. -->
+   <div v-if="team.archived" class="bg-ibc-cream border-b border-slate-200">
+     <div class="max-w-6xl mx-auto px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+       <span class="text-slate-600">
+         Archived season. Tap a player for their stats from every season.
+       </span>
+       <router-link
+         v-if="liveSeason"
+         :to="`/teams/${ageGroup}`"
+         class="font-bold text-ibc-red hover:underline"
+       >
+         Current {{ team.ageGroup }} team &rarr;
+       </router-link>
+     </div>
+   </div>
+
    <!-- Team Details -->
-   <div class="max-w-6xl mx-auto px-8 py-12">
+   <div class="max-w-6xl mx-auto px-4 sm:px-8 py-12">
+     <!-- No team to show: between seasons, or a season link that matches nothing. -->
+     <div v-if="!team.hasSeason" class="mb-12">
+       <h2 class="text-2xl font-black text-ibc-navy uppercase tracking-wide mb-2">
+         {{ pinnedSeason ? 'Season not found' : 'No team this season' }}
+       </h2>
+       <p class="text-slate-600">
+         {{ pinnedSeason
+           ? `There is no ${team.ageGroup.toUpperCase()} team on file for that season.`
+           : pastSeasons.length
+             ? `${team.ageGroup.toUpperCase()} isn't playing right now. Its past seasons are below.`
+             : `${team.ageGroup.toUpperCase()} isn't playing right now.` }}
+       </p>
+     </div>
+
+     <template v-else>
      <!-- Coach Section (kept minimal) -->
      <div class="mb-12">
        <h2 class="text-2xl font-black text-ibc-navy uppercase tracking-wide mb-4">Coaching Staff</h2>
@@ -290,6 +379,25 @@ function closePlayerModal() {
              <div class="text-sm text-slate-500">#{{ player.number }}</div>
            </div>
          </button>
+       </div>
+     </div>
+     </template>
+
+     <!-- Past seasons: archiving takes a team off the site, and this keeps its
+          old rosters, coaches and records a tap away. -->
+     <div v-if="pastSeasons.length" class="mt-12">
+       <h2 class="text-2xl font-black text-ibc-navy uppercase tracking-wide mb-4">Past Seasons</h2>
+       <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+         <router-link
+           v-for="s in pastSeasons"
+           :key="seasonSlug(s)"
+           :to="`/teams/${ageGroup}/${seasonSlug(s)}`"
+           class="bg-white rounded-lg shadow p-4 hover:shadow-lg transition block"
+         >
+           <div class="font-black text-ibc-navy uppercase tracking-wide">{{ s.season }} {{ s.year }}</div>
+           <div class="text-sm text-slate-600 mt-1">Coach {{ s.headCoach }}</div>
+           <div v-if="formatRecord(s)" class="text-sm font-bold text-ibc-red mt-1">{{ formatRecord(s) }}</div>
+         </router-link>
        </div>
      </div>
    </div>

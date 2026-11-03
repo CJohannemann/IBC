@@ -12,6 +12,8 @@ export interface TeamDetail {
   /** The live season; null when every season of the team is archived. */
   season: string | null
   year: number | null
+  /** True when this is a past season, asked for by name. */
+  archived: boolean
   headCoach: string | null
   assistantCoaches: string[]
   players: Player[]
@@ -68,7 +70,50 @@ export async function copyRoster(
   return data
 }
 
-export async function getTeam(league: string): Promise<TeamDetail> {
-  const { data } = await api.get(`/teams/${league}`)
+/** The live season, or a given one - archived or not - for its past-season page. */
+export async function getTeam(
+  league: string,
+  season?: { season: string; year: number } | null
+): Promise<TeamDetail> {
+  const params = season ? { season: season.season, year: season.year } : {}
+  const { data } = await api.get(`/teams/${league}`, { params })
   return data
+}
+
+/** One team's season, live or archived, as GET /teams/seasons lists it. */
+export interface TeamSeasonSummary {
+  league: string
+  sport: string
+  season: string
+  year: number
+  archived: boolean
+  headCoach: string
+  wins: number | null
+  losses: number | null
+  ties: number | null
+}
+
+/** Every season each team has had, newest first. */
+export async function getTeamSeasons(sport?: string): Promise<TeamSeasonSummary[]> {
+  const params = sport ? { sport } : {}
+  const { data } = await api.get('/teams/seasons', { params })
+  return data
+}
+
+/** "fall-2026", the season as it appears in a past-season link. */
+export function seasonSlug(s: { season: string; year: number }): string {
+  return `${s.season}-${s.year}`.toLowerCase()
+}
+
+/** Back from "fall-2026" to { season: 'fall', year: 2026 }; null if malformed. */
+export function parseSeasonSlug(slug: string | undefined): { season: string; year: number } | null {
+  const m = /^([a-z]+)-(\d{4})$/i.exec(slug || '')
+  return m ? { season: m[1], year: Number(m[2]) } : null
+}
+
+/** "1-9", or "1-9-1" with ties; null when no record was entered. */
+export function formatRecord(s: { wins: number | null; losses: number | null; ties: number | null }): string | null {
+  if (s.wins == null && s.losses == null) return null
+  const base = `${s.wins ?? 0}-${s.losses ?? 0}`
+  return s.ties ? `${base}-${s.ties}` : base
 }

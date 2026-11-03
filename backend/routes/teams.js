@@ -86,6 +86,66 @@ module.exports = function createTeamRoutes(db, requireAdmin) {
     }
   })
 
+  // Every season each team has had, live and archived, newest first, with its
+  // head coach and record. Drives the past-seasons pages: archiving takes a
+  // team off the site, and this is how its old seasons stay reachable.
+  router.get('/seasons', async (req, res) => {
+    try {
+      const sport = req.query.sport
+      const coaches = await db.all(
+        `
+        SELECT first_name, last_name, league, sport, season, year, archive
+        FROM coaches
+        WHERE season IS NOT NULL AND year IS NOT NULL
+          ${sport ? 'AND lower(sport) = lower(?)' : ''}
+        ORDER BY last_name, first_name
+        `,
+        sport ? [sport] : []
+      )
+      const records = await db.all(
+        'SELECT league, sport, season, year, wins, losses, ties FROM team_stats ORDER BY id'
+      )
+
+      const key = (r) => [r.league, r.sport, r.season, r.year].join('|').toLowerCase()
+      const recordFor = new Map()
+      for (const r of records) if (!recordFor.has(key(r))) recordFor.set(key(r), r)
+
+      // A season can have more than one coach row; it is one team season.
+      // Live if any of its rows is, matching how the team page finds it.
+      const seasons = new Map()
+      for (const c of coaches) {
+        const k = key(c)
+        const seen = seasons.get(k)
+        if (seen) {
+          if (c.archive === 'N') seen.archived = false
+          continue
+        }
+        const record = recordFor.get(k)
+        seasons.set(k, {
+          league: c.league,
+          sport: c.sport,
+          season: c.season,
+          year: c.year,
+          archived: c.archive !== 'N',
+          headCoach: `${c.first_name} ${c.last_name}`.trim(),
+          wins: record?.wins ?? null,
+          losses: record?.losses ?? null,
+          ties: record?.ties ?? null,
+        })
+      }
+
+      const order = { fall: 3, summer: 2, spring: 1 }
+      res.json([...seasons.values()].sort((a, b) =>
+        (b.year - a.year) ||
+        ((order[String(b.season).toLowerCase()] || 0) - (order[String(a.season).toLowerCase()] || 0)) ||
+        String(a.league).localeCompare(String(b.league), undefined, { numeric: true })
+      ))
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ error: 'internal_error' })
+    }
+  })
+
   // Headline counts for the home page: live teams, and the players and games of
   // their current seasons only. Counting the tables whole took in every season
   // ever entered, archived teams included.
@@ -241,6 +301,11 @@ module.exports = function createTeamRoutes(db, requireAdmin) {
       // or stale URL is cleaned up here.
       const league = (normalizeLeague(req.params.league) || '').toLowerCase()
 
+      // ?season=&year= asks for one season, archived or not - a past season's
+      // page. Without them, the live season.
+      const { season, year } = req.query
+      const pinned = season && year != null && year !== ''
+
       // Ordered rather than an arbitrary LIMIT 1: if a league is ever left with
       // two live seasons, the newest is the one the site should be showing.
       const coach = await db.get(`
@@ -249,11 +314,12 @@ module.exports = function createTeamRoutes(db, requireAdmin) {
           last_name,
           league,
           season,
-          year
+          year,
+          archive
         FROM coaches
         WHERE lower(league) = ?
-          AND archive = 'N'
-        ORDER BY year DESC,
+          ${pinned ? 'AND lower(season) = lower(?) AND year = ?' : "AND archive = 'N'"}
+        ORDER BY archive ASC, year DESC,
           CASE lower(season)
             WHEN 'fall' THEN 3
             WHEN 'summer' THEN 2
@@ -261,7 +327,7 @@ module.exports = function createTeamRoutes(db, requireAdmin) {
             ELSE 0
           END DESC
         LIMIT 1
-      `, league)
+      `, pinned ? [league, season, Number(year)] : [league])
 
       // Assistants hang off the head coach's composite key, so there is nobody
       // to look up until we know which coach is current for this league.
@@ -299,6 +365,7 @@ module.exports = function createTeamRoutes(db, requireAdmin) {
         // than whatever is newest on file. Null once the team is archived.
         season: coach?.season ?? null,
         year: coach?.year ?? null,
+        archived: coach ? coach.archive !== 'N' : false,
         headCoach: coach
           ? `${coach.first_name} ${coach.last_name}`
           : null,

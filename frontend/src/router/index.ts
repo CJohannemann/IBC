@@ -9,8 +9,13 @@ const router = createRouter({
       component: () => import('@/pages/HomePage.vue'),
     },
     {
-      path: '/teams/:ageGroup',
+      // :season is a past season, e.g. /teams/10u/fall-2026; without it, the live team.
+      path: '/teams/:ageGroup/:season?',
       component: () => import('@/pages/TeamPage.vue'),
+    },
+    {
+      path: '/past-seasons',
+      component: () => import('@/pages/PastSeasonsPage.vue'),
     },
     {
       path: '/schedule',

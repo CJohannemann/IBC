@@ -9,6 +9,9 @@ export interface Team {
 
 export interface TeamDetail {
   league: string
+  /** The live season; null when every season of the team is archived. */
+  season: string | null
+  year: number | null
   headCoach: string | null
   assistantCoaches: string[]
   players: Player[]

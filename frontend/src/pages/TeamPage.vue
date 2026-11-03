@@ -31,6 +31,8 @@ const team = reactive({
   wins: 0,
   losses: 0,
   ties: 0,
+  // False once the team is archived: there is no season, so no record to show.
+  hasSeason: false,
 })
 
 const record = computed(() =>
@@ -94,9 +96,17 @@ const formatTime = (timeStr: string) => {
   return `${displayHour}:${m} ${ampm}`
 }
 
-async function loadRecord(league: string) {
+// Asked for by season, the same one the roster comes from. Left unscoped, the
+// server answers with the newest season on file, so an archived team kept
+// showing its final record and a new season would open on the old one.
+async function loadRecord(league: string, season: string | null, year: number | null) {
+  team.wins = 0
+  team.losses = 0
+  team.ties = 0
+  if (!season || year == null) return
+
   try {
-    const stats = await getTeamStats({ league })
+    const stats = await getTeamStats({ league, season, year })
     const teamStat = stats[0]
 
     team.wins = teamStat?.wins || 0
@@ -111,7 +121,6 @@ async function loadRecord(league: string) {
 }
 
 async function loadTeam(league: string) {
-  loadRecord(league)
   loadNextGame(league)
 
   try {
@@ -121,6 +130,8 @@ async function loadTeam(league: string) {
     team.name = `${leagueName.toUpperCase()} Team`
     team.ageGroup = leagueName
     team.headCoach = data.headCoach || null
+    team.hasSeason = !!data.season
+    loadRecord(league, data.season, data.year)
     team.assistantCoaches = data.assistantCoaches || []
     team.roster = (data.players || []).map((p) => ({
       number: p.player_number,
@@ -137,6 +148,8 @@ async function loadTeam(league: string) {
     team.name = `${league.toUpperCase()} Team`
     team.ageGroup = league
     team.headCoach = null
+    team.hasSeason = false
+    loadRecord(league, null, null)
     team.assistantCoaches = []
     team.roster = []
   }
@@ -171,7 +184,7 @@ function closePlayerModal() {
    <div class="bg-ibc-navy text-white">
      <div class="max-w-6xl mx-auto px-4 sm:px-8 py-8 sm:py-10">
        <h1 class="text-3xl sm:text-4xl font-black uppercase tracking-widest text-white">{{ team.name }}</h1>
-       <p class="text-ibc-gold text-lg font-bold mt-1">{{ record }} Record</p>
+       <p v-if="team.hasSeason" class="text-ibc-gold text-lg font-bold mt-1">{{ record }} Record</p>
      </div>
 
    </div>

@@ -213,6 +213,10 @@ module.exports = function createTeamRoutes(db, requireAdmin) {
 
       res.json({
         league: coach?.league ?? req.params.league,
+        // The live season, so the page can ask for that season's record rather
+        // than whatever is newest on file. Null once the team is archived.
+        season: coach?.season ?? null,
+        year: coach?.year ?? null,
         headCoach: coach
           ? `${coach.first_name} ${coach.last_name}`
           : null,

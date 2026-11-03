@@ -1620,10 +1620,11 @@
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-semibold">League *</label>
-                  <select v-model="statsForm.league" class="mt-1 block w-full p-2 border rounded" required>
+                  <select v-model="statsForm.league" @change="fillLatestSeason(statsForm)"
+                    class="mt-1 block w-full p-2 border rounded" required>
                     <option disabled value="">Select a league</option>
-                    <option v-for="team in availableTeams" :key="`${team.league}-${team.sport}`" :value="team.league">
-                      {{ team.league }} ({{ team.sport }})
+                    <option v-for="team in statsLeagues" :key="`${team.league}-${team.sport}`" :value="team.league">
+                      {{ team.league }} ({{ team.sport }}){{ team.archived ? ' - archived' : '' }}
                     </option>
                   </select>
                 </div>
@@ -1738,11 +1739,11 @@
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-semibold">League *</label>
-                  <select v-model="recordForm.league" @change="loadExistingRecord"
+                  <select v-model="recordForm.league" @change="fillLatestSeason(recordForm); loadExistingRecord()"
                     class="mt-1 block w-full p-2 border rounded" required>
                     <option disabled value="">Select a league</option>
-                    <option v-for="team in availableTeams" :key="`${team.league}-${team.sport}`" :value="team.league">
-                      {{ team.league }} ({{ team.sport }})
+                    <option v-for="team in statsLeagues" :key="`${team.league}-${team.sport}`" :value="team.league">
+                      {{ team.league }} ({{ team.sport }}){{ team.archived ? ' - archived' : '' }}
                     </option>
                   </select>
                 </div>
@@ -2310,7 +2311,7 @@ import { usePlayerStore } from '@/stores/players'
 import { useSportStore } from '@/stores/sport'
 import { getCoaches, createCoach, updateCoach, deleteCoach, type Coach } from '@/api/coaches'
 import { getAssistants, createAssistant, updateAssistant, deleteAssistant, type Assistant } from '@/api/assistants'
-import { getTeams, archiveTeam, copyRoster, type Team } from '@/api/teams'
+import { getTeamSeasons, archiveTeam, copyRoster, type TeamSeasonSummary } from '@/api/teams'
 import { createUniform, getUniform, deleteUniform, type NewUniformItem, type Uniform } from '@/api/uniform'
 
 const playerStore = usePlayerStore()
@@ -3302,7 +3303,6 @@ const statsMsgClass = ref('')
 const uploadingStats = ref(false)
 const statsFile = ref<File | null>(null)
 const statsFileInput = ref<HTMLInputElement | null>(null)
-const availableTeams = ref<Team[]>([])
 
 const statsForm = reactive({
   league: '',
@@ -3313,13 +3313,49 @@ const statsForm = reactive({
   year: new Date().getFullYear()
 })
 
-async function openStatsModal() {
-  try {
-    availableTeams.value = await getTeams()
-  } catch (err) {
-    console.error('Failed to load teams:', err)
-    availableTeams.value = []
+// Every team that has had a season, archived ones included. Stats and records
+// for a finished season are often entered after the team is archived - a
+// late GameChanger export, or a re-upload to pick up new columns - so the
+// pickers cannot be limited to live teams the way the rest of the site is.
+const teamSeasonList = ref<TeamSeasonSummary[]>([])
+
+const statsLeagues = computed(() => {
+  const leagues = new Map<string, { league: string; sport: string; archived: boolean; latest: TeamSeasonSummary }>()
+  // The list arrives newest first, so the first season seen is the latest.
+  for (const s of teamSeasonList.value) {
+    const key = `${s.league}|${s.sport}`.toLowerCase()
+    const seen = leagues.get(key)
+    if (seen) seen.archived &&= s.archived
+    else leagues.set(key, { league: s.league, sport: s.sport, archived: s.archived, latest: s })
   }
+  return [...leagues.values()].sort((a, b) =>
+    Number(a.archived) - Number(b.archived) ||
+    a.league.localeCompare(b.league, undefined, { numeric: true })
+  )
+})
+
+async function loadTeamSeasonList() {
+  try {
+    teamSeasonList.value = await getTeamSeasons()
+  } catch (err) {
+    console.error('Failed to load team seasons:', err)
+    teamSeasonList.value = []
+  }
+}
+
+/** Point the form at the league's newest season - Fall 2026 for an archived 10U. */
+function fillLatestSeason(form: { league: string; sport: string; season: string; year: number }) {
+  const match =
+    statsLeagues.value.find((t) => t.league === form.league && t.sport === form.sport) ||
+    statsLeagues.value.find((t) => t.league === form.league)
+  if (!match) return
+  form.sport = match.sport
+  form.season = match.latest.season
+  form.year = match.latest.year
+}
+
+async function openStatsModal() {
+  await loadTeamSeasonList()
   statsForm.league = ''
   statsForm.sport = sportStore.activeSport
   statsFile.value = null
@@ -3408,12 +3444,7 @@ const recordForm = reactive({
 })
 
 async function openRecordModal() {
-  try {
-    availableTeams.value = await getTeams()
-  } catch (err) {
-    console.error('Failed to load teams:', err)
-    availableTeams.value = []
-  }
+  await loadTeamSeasonList()
   recordForm.league = ''
   recordForm.sport = sportStore.activeSport
   recordForm.team_name = ''
@@ -3641,7 +3672,6 @@ async function submitAddTeam() {
     await Promise.all([
       sportStore.fetchSports(),
       getCoaches().then((rows) => { allCoaches.value = rows }),
-      getTeams().then((rows) => { availableTeams.value = rows })
     ])
 
     setTimeout(() => closeAddTeamModal(), 1500)
@@ -3736,7 +3766,6 @@ async function setTeamArchived(team: TeamSeason, archived: boolean) {
       loadTeamSeasons(),
       sportStore.fetchSports(),
       getCoaches().then((rows) => { allCoaches.value = rows }),
-      getTeams().then((rows) => { availableTeams.value = rows })
     ])
   } catch (err: any) {
     console.error('Archive team error:', err)

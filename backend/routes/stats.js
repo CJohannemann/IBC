@@ -2,6 +2,15 @@
 const express = require('express')
 const { currentSeason } = require('../lib/migrations')
 const { normalizeObject } = require('../lib/normalize')
+const { playerSlug } = require('../lib/slug')
+
+const SEASON_ORDER = { spring: 1, summer: 2, fall: 3 }
+
+/** Oldest first, the way a career reads. */
+function bySeason(a, b) {
+  return (a.year - b.year) ||
+    ((SEASON_ORDER[String(a.season).toLowerCase()] || 0) - (SEASON_ORDER[String(b.season).toLowerCase()] || 0))
+}
 const multer = require('multer')
 const { parse } = require('csv-parse/sync')
 
@@ -125,6 +134,82 @@ module.exports = (db, requireAdmin) => {
       res.json(rows)
     } catch (err) {
       console.error('Get seasons error:', err)
+      res.status(500).json({ error: 'internal_error' })
+    }
+  })
+
+  // One player's stats for every season on file, archived teams included, so
+  // a single link shows a scout the whole career.
+  //
+  // Stats carry only the name from the GameChanger export - no player id - so
+  // seasons are joined on the name's slug. Two players with the same name
+  // would share a page; the roster has no better key to tell them apart.
+  router.get('/player/:slug', async (req, res) => {
+    try {
+      const slug = playerSlug(req.params.slug)
+      if (!slug) return res.status(404).json({ error: 'player_not_found' })
+
+      const names = (await db.all(`
+        SELECT DISTINCT player_name FROM batting_stats
+        UNION SELECT DISTINCT player_name FROM pitching_stats
+      `)).map((r) => r.player_name).filter((n) => playerSlug(n) === slug)
+
+      const marks = names.map(() => '?').join(', ')
+      const [batting, pitching] = names.length
+        ? await Promise.all([
+            db.all(`SELECT * FROM batting_stats WHERE player_name IN (${marks})`, names),
+            db.all(`SELECT * FROM pitching_stats WHERE player_name IN (${marks})`, names),
+          ])
+        : [[], []]
+
+      const seasons = new Map()
+      const seasonFor = (row) => {
+        const key = [row.league, row.sport, row.season, row.year].join('|').toLowerCase()
+        if (!seasons.has(key)) {
+          seasons.set(key, {
+            league: row.league,
+            sport: row.sport,
+            season: row.season,
+            year: row.year,
+            name: row.player_name,
+            batting: null,
+            pitching: null,
+          })
+        }
+        return seasons.get(key)
+      }
+      for (const row of batting) seasonFor(row).batting ??= row
+      for (const row of pitching) seasonFor(row).pitching ??= row
+
+      const career = [...seasons.values()].sort(bySeason)
+
+      // Number and photo from the newest roster spot under the same name. Only
+      // those two: the bio and favourites are for the team page, not a scout.
+      const rosterRows = (await db.all(`
+        SELECT first_name, last_name, player_number, photo_path, league, season, year
+        FROM players
+      `)).filter((p) => playerSlug(`${p.first_name || ''} ${p.last_name || ''}`) === slug)
+      const roster = rosterRows.sort(bySeason).pop() || null
+
+      if (!career.length && !roster) return res.status(404).json({ error: 'player_not_found' })
+
+      const name = career.length
+        ? career[career.length - 1].name
+        : `${roster.first_name || ''} ${roster.last_name || ''}`.trim()
+
+      res.json({
+        name,
+        roster: roster && {
+          player_number: roster.player_number,
+          photo_path: roster.photo_path,
+          league: roster.league,
+          season: roster.season,
+          year: roster.year,
+        },
+        seasons: career.map(({ name: _name, ...s }) => s),
+      })
+    } catch (err) {
+      console.error('Get player stats error:', err)
       res.status(500).json({ error: 'internal_error' })
     }
   })

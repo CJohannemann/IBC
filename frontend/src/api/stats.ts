@@ -81,6 +81,36 @@ export async function getTeamStats(params?: { league?: string; sport?: string; s
   return data
 }
 
+/** One season of a player's career - either side can be missing. */
+export interface PlayerSeason {
+  league: string
+  sport: string
+  season: string | null
+  year: number | null
+  batting: BattingStat | null
+  pitching: PitchingStat | null
+}
+
+export interface PlayerCareer {
+  name: string
+  /** Newest roster spot under this name; null if they were never on one. */
+  roster: {
+    player_number: number | null
+    photo_path: string | null
+    league: string
+    season: string | null
+    year: number | null
+  } | null
+  /** Oldest first. */
+  seasons: PlayerSeason[]
+}
+
+/** Every season on file for one player, archived teams included. */
+export async function getPlayerCareer(slug: string): Promise<PlayerCareer> {
+  const { data } = await api.get(`/stats/player/${encodeURIComponent(slug)}`)
+  return data
+}
+
 export interface TeamRecord {
   league: string
   sport: string

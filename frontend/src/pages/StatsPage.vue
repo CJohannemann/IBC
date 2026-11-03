@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import { computed, ref, onMounted } from 'vue'
 import { getBattingStats, getPitchingStats, getTeamStats, getSeasons } from '@/api/stats'
 import type { BattingStat, PitchingStat, TeamStat, Season } from '@/api/stats'
+import { playerSlug } from '@/lib/slug'
 
 interface BattingPlayer {
   id: string
@@ -188,12 +189,39 @@ const getTopBattingLeaders = (team: TeamBattingStats) => {
 // Ranked by K-BB%, the best single measure of pitching skill at this age.
 // Fewer walks breaks a tie, since walks drive the most runs at 10U.
 // ERA and BAA are shown but never sorted on: they lean on the defence.
-const getTopPitchingLeaders = (team: TeamPitchingStats) => {
+const rankedPitchers = (team: TeamPitchingStats) => {
   return team.pitchers
     .filter(p => p.kMinusBbRate !== null && p.battersFaced >= team.minBattersFaced)
     .sort((a, b) => (b.kMinusBbRate! - a.kMinusBbRate!) || (a.walkRate! - b.walkRate!))
-    .slice(0, 3)
 }
+const getTopPitchingLeaders = (team: TeamPitchingStats) => rankedPitchers(team).slice(0, 3)
+
+// Teams showing their whole roster rather than the top three, by age group.
+// Kept per category, so opening 10U batting does not also open 10U pitching.
+const expanded = ref(new Set<string>())
+const expandKey = (team: { ageGroup: string }) => `${category.value}:${team.ageGroup}`
+const isExpanded = (team: { ageGroup: string }) => expanded.value.has(expandKey(team))
+function toggleExpanded(team: { ageGroup: string }) {
+  const next = new Set(expanded.value)
+  const key = expandKey(team)
+  if (!next.delete(key)) next.add(key)
+  expanded.value = next
+}
+
+const battingRows = (team: TeamBattingStats) =>
+  isExpanded(team) ? team.players : getTopBattingLeaders(team)
+
+// The full list keeps the ranked pitchers first, in rank order, then everyone
+// short of the batters-faced minimum by how much they have thrown.
+const pitchingRows = (team: TeamPitchingStats) => {
+  if (!isExpanded(team)) return getTopPitchingLeaders(team)
+  const ranked = rankedPitchers(team)
+  const rest = team.pitchers
+    .filter(p => !ranked.includes(p))
+    .sort((a, b) => b.battersFaced - a.battersFaced)
+  return [...ranked, ...rest]
+}
+const isRanked = (team: TeamPitchingStats, idx: number) => idx < rankedPitchers(team).length
 
 const formatRate = (value: number | null) => value === null ? '–' : `${(value * 100).toFixed(1)}%`
 const formatPct = (value: number | null) => value === null ? '–' : `${value.toFixed(1)}%`
@@ -248,7 +276,7 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
         >
           <!-- Team Header -->
           <div class="bg-ibc-navy text-white px-8 py-4">
-            <h2 class="text-2xl font-black uppercase tracking-wide">{{ team.name }}</h2>
+            <h2 class="text-2xl font-black uppercase tracking-wide text-white">{{ team.name }}</h2>
           </div>
 
           <!-- Table -->
@@ -267,7 +295,7 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
               </thead>
               <tbody>
                 <tr
-                  v-for="(player, idx) in getTopBattingLeaders(team)"
+                  v-for="(player, idx) in battingRows(team)"
                   :key="player.id"
                   class="border-b border-slate-200 hover:bg-slate-50 transition"
                   :class="{
@@ -287,7 +315,9 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
                       {{ idx + 1 }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 text-sm font-semibold text-ibc-navy">{{ player.name }}</td>
+                  <td class="px-6 py-4 text-sm font-semibold text-ibc-navy">
+                    <router-link :to="`/players/${playerSlug(player.name)}`" class="hover:text-ibc-red hover:underline">{{ player.name }}</router-link>
+                  </td>
                   <td class="px-6 py-4 text-sm font-bold text-center text-ibc-red">
                     {{ player.battingAverage.toFixed(3) }}
                   </td>
@@ -303,6 +333,14 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
               </tbody>
             </table>
           </div>
+          <button
+            v-if="team.players.length > 3"
+            type="button"
+            @click="toggleExpanded(team)"
+            class="w-full px-6 py-3 text-sm font-bold text-ibc-red hover:bg-slate-50 border-t border-slate-200"
+          >
+            {{ isExpanded(team) ? 'Show top 3' : `Show all ${team.players.length} players` }}
+          </button>
         </div>
       </div>
 
@@ -315,7 +353,7 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
         >
           <!-- Team Header -->
           <div class="bg-ibc-navy text-white px-8 py-4">
-            <h2 class="text-2xl font-black uppercase tracking-wide">{{ team.name }}</h2>
+            <h2 class="text-2xl font-black uppercase tracking-wide text-white">{{ team.name }}</h2>
           </div>
 
           <!-- Table -->
@@ -337,7 +375,7 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
               </thead>
               <tbody>
                 <tr
-                  v-for="(pitcher, idx) in getTopPitchingLeaders(team)"
+                  v-for="(pitcher, idx) in pitchingRows(team)"
                   :key="pitcher.id"
                   class="border-b border-slate-200 hover:bg-slate-50 transition"
                   :class="{
@@ -346,7 +384,7 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
                   }"
                 >
                   <td class="px-6 py-4 text-sm font-bold text-ibc-navy">
-                    <span
+                    <span v-if="isRanked(team, idx)"
                       class="inline-flex items-center justify-center w-8 h-8 rounded-full"
                       :class="{
                         'bg-ibc-gold text-ibc-navy': idx === 0,
@@ -356,8 +394,11 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
                     >
                       {{ idx + 1 }}
                     </span>
+                    <span v-else class="text-slate-400">–</span>
                   </td>
-                  <td class="px-6 py-4 text-sm font-semibold text-ibc-navy">{{ pitcher.name }}</td>
+                  <td class="px-6 py-4 text-sm font-semibold text-ibc-navy">
+                    <router-link :to="`/players/${playerSlug(pitcher.name)}`" class="hover:text-ibc-red hover:underline">{{ pitcher.name }}</router-link>
+                  </td>
                   <td class="px-6 py-4 text-sm font-bold text-center text-ibc-red">
                     {{ formatRate(pitcher.kMinusBbRate) }}
                   </td>
@@ -369,7 +410,7 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
                   <td class="px-6 py-4 text-sm text-center text-slate-500">{{ formatEra(pitcher.era) }}</td>
                   <td class="px-6 py-4 text-sm text-center text-slate-500">{{ formatBaa(pitcher.baa) }}</td>
                 </tr>
-                <tr v-if="getTopPitchingLeaders(team).length === 0">
+                <tr v-if="pitchingRows(team).length === 0">
                   <td colspan="10" class="px-6 py-8 text-sm text-center text-slate-500">
                     No batters-faced numbers for this season yet. Re-upload its GameChanger CSV to rank pitchers.
                   </td>
@@ -377,6 +418,14 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
               </tbody>
             </table>
           </div>
+          <button
+            v-if="team.pitchers.length > 3"
+            type="button"
+            @click="toggleExpanded(team)"
+            class="w-full px-6 py-3 text-sm font-bold text-ibc-red hover:bg-slate-50 border-t border-slate-200"
+          >
+            {{ isExpanded(team) ? 'Show top 3' : `Show all ${team.pitchers.length} pitchers` }}
+          </button>
           <p class="px-6 py-3 text-xs text-slate-500 border-t border-slate-200">
             Ranked by K-BB%: (strikeouts − walks) ÷ batters faced.
             Minimum {{ team.minBattersFaced }} batters faced.
@@ -389,7 +438,7 @@ const getRunDiff = (team: TeamStat) => (team.runs_scored || 0) - (team.runs_allo
         <div class="bg-white rounded-lg shadow overflow-hidden">
           <!-- Header -->
           <div class="bg-ibc-navy text-white px-8 py-4">
-            <h2 class="text-2xl font-black uppercase tracking-wider">Team Standings</h2>
+            <h2 class="text-2xl font-black uppercase tracking-wider text-white">Team Standings</h2>
           </div>
 
           <!-- Team Stats Table -->

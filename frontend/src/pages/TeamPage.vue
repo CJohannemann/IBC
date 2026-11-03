@@ -7,6 +7,7 @@ import { getSchedule, type ScheduleEntry } from '@/api/schedule'
 import { useSportStore } from '@/stores/sport'
 import { mapsUrl } from '@/lib/maps'
 import placeholderPlayer from '@/assets/placeholder-player.png'
+import { playerSlug } from '@/lib/slug'
 
 const route = useRoute()
 const sportStore = useSportStore()
@@ -322,7 +323,14 @@ function closePlayerModal() {
              </div>
            </div>
 
-           <div class="text-right">
+           <div class="flex items-center justify-between gap-3">
+             <router-link
+               v-if="selectedPlayer"
+               :to="`/players/${playerSlug(selectedPlayer.name)}`"
+               class="text-ibc-red font-bold hover:underline"
+             >
+               View stats &rarr;
+             </router-link>
              <button @click="closePlayerModal" class="px-4 py-2 bg-ibc-red text-white rounded font-semibold hover:bg-ibc-gold">Close</button>
            </div>
          </div>

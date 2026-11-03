@@ -411,15 +411,24 @@ module.exports = (db, requireAdmin) => {
 
       const { season, year } = await seasonForWrite(db, req.body)
 
-      // Extract team name from filename (e.g., "KC Kryptonite 9U Spring 2026 Stats.csv")
+      // The team name comes from the file name when it follows GameChanger's
+      // pattern, "Team Name 10U Fall 2026 Stats.csv". A renamed file used to
+      // land as "Unknown Team" and overwrite the name the season already had,
+      // so otherwise keep that name, then the league's, then the club's from
+      // any team, and only then fall back to the league itself ("10U").
       const filename = req.file.originalname
-      let teamName = 'Unknown Team'
-      
-      // Try to extract team name from filename pattern: "Team Name XU Season Year Stats.csv"
       const match = filename.match(/^(.+?)\s+\d+U/i)
-      if (match) {
-        teamName = match[1].trim()
-      }
+      const knownNames = await db.all(
+        `SELECT team_name,
+                lower(league) = lower(?) AND lower(sport) = lower(?) AND season = ? AND year = ? AS this_season,
+                lower(league) = lower(?) AS this_league
+           FROM team_stats
+          WHERE team_name IS NOT NULL AND team_name != '' AND team_name != 'Unknown Team'
+          ORDER BY this_season DESC, this_league DESC, year DESC, id DESC
+          LIMIT 1`,
+        [league, sport || 'Baseball', season, year, league]
+      )
+      const teamName = match?.[1].trim() || knownNames[0]?.team_name || String(league)
 
       // Parse CSV - handle multi-row headers
       const allRecords = parse(req.file.buffer, {
@@ -510,9 +519,13 @@ module.exports = (db, requireAdmin) => {
 
       // The CSV carries no team record, so hold on to any hand-entered W/L/T
       // and put it back after the rebuild instead of resetting it to 0-0
+      // Only this season's: across the whole league, a re-upload could carry
+      // another season's record over, whichever SQLite happened to return first.
       const priorRecords = await db.all(
-        'SELECT team_name, wins, losses, ties FROM team_stats WHERE league = ? AND sport = ?',
-        [league, sport || 'Baseball']
+        `SELECT team_name, wins, losses, ties FROM team_stats
+          WHERE lower(league) = lower(?) AND lower(sport) = lower(?) AND season = ? AND year = ?
+          ORDER BY id`,
+        [league, sport || 'Baseball', season, year]
       )
       const priorByTeam = new Map(priorRecords.map(r => [r.team_name, r]))
 

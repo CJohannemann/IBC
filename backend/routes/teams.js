@@ -17,6 +17,28 @@ const PLAYER_COLUMNS = `
   sport
 `
 
+/**
+ * Whether a schedule entry belongs to a team's season.
+ *
+ * Season is optional when a game is entered, so an untagged game is placed by
+ * its date instead: the same calendar year, and the half of it the season
+ * covers, split at July as the stats migration does (currentSeason).
+ */
+function inSeason(game, team) {
+  if (game.season && game.year != null) {
+    return game.season.toLowerCase() === String(team.season).toLowerCase() &&
+      Number(game.year) === Number(team.year)
+  }
+
+  const [y, m] = String(game.date || '').split('-').map(Number)
+  if (!y || y !== Number(team.year)) return false
+
+  const season = String(team.season).toLowerCase()
+  if (season === 'fall') return m >= 7
+  if (season === 'spring') return m < 7
+  return true
+}
+
 module.exports = function createTeamRoutes(db, requireAdmin) {
   const router = Router()
 
@@ -58,6 +80,66 @@ module.exports = function createTeamRoutes(db, requireAdmin) {
         ORDER BY sport
       `)
       res.json(rows.map(r => r.sport))
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ error: 'internal_error' })
+    }
+  })
+
+  // Headline counts for the home page: live teams, and the players and games of
+  // their current seasons only. Counting the tables whole took in every season
+  // ever entered, archived teams included.
+  router.get('/summary', async (req, res) => {
+    try {
+      const sport = req.query.sport
+      const live = await db.all(
+        `
+        SELECT DISTINCT league, sport, season, year
+        FROM coaches
+        WHERE archive = 'N'
+          ${sport ? 'AND lower(sport) = lower(?)' : ''}
+        ORDER BY year DESC,
+          CASE lower(season)
+            WHEN 'fall' THEN 3
+            WHEN 'summer' THEN 2
+            WHEN 'spring' THEN 1
+            ELSE 0
+          END DESC
+        `,
+        sport ? [sport] : []
+      )
+
+      // One season per team, the newest - the same one its team page shows.
+      const teams = new Map()
+      for (const t of live) {
+        const key = `${t.league}|${t.sport}`.toLowerCase()
+        if (!teams.has(key)) teams.set(key, t)
+      }
+
+      let players = 0
+      let games = 0
+      for (const t of teams.values()) {
+        const row = await db.get(
+          `SELECT COUNT(*) AS n FROM players
+            WHERE lower(league) = lower(?)
+              AND lower(sport)  = lower(?)
+              AND lower(season) = lower(?)
+              AND year          = ?`,
+          [t.league, t.sport, t.season, t.year]
+        )
+        players += row.n
+
+        const schedule = await db.all(
+          `SELECT date, season, year FROM schedule
+            WHERE lower(type)   = 'game'
+              AND lower(league) = lower(?)
+              AND lower(sport)  = lower(?)`,
+          [t.league, t.sport]
+        )
+        games += schedule.filter((g) => inSeason(g, t)).length
+      }
+
+      res.json({ teams: teams.size, players, games })
     } catch (err) {
       console.error(err)
       res.status(500).json({ error: 'internal_error' })

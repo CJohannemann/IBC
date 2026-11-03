@@ -23,6 +23,19 @@ export async function getTeams(sport?: string): Promise<Team[]> {
   return data
 }
 
+/** Counts for the live teams' current seasons - see GET /teams/summary. */
+export interface TeamSummary {
+  teams: number
+  players: number
+  games: number
+}
+
+export async function getTeamSummary(sport?: string): Promise<TeamSummary> {
+  const params = sport ? { sport } : {}
+  const { data } = await api.get('/teams/summary', { params })
+  return data
+}
+
 export async function getSports(): Promise<string[]> {
   const { data } = await api.get('/teams/sports')
   return data

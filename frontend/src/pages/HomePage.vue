@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { getSchedule, type ScheduleEntry } from '@/api/schedule'
 import { getNews, type NewsArticle } from '@/api/news'
-import { getTeams, type Team } from '@/api/teams'
+import { getTeams, getTeamSummary, type Team, type TeamSummary } from '@/api/teams'
 import { activeSocialLinks } from '@/lib/social'
 import wilsonLogo from '@/assets/sponsors/wilson.png'
 import demariniLogo from '@/assets/sponsors/demarini.png'
@@ -13,7 +13,6 @@ import jubileeLogo from '@/assets/sponsors/jubilee-contracting.png'
 import grizzyLogo from '@/assets/sponsors/grizzy.png'
 import convergentLogo from '@/assets/sponsors/convergent-solutions.png'
 import redBarnLogo from '@/assets/sponsors/red-barn-farm.png'
-import { getPlayers, type Player } from '@/api/players'
 import { useSportStore } from '@/stores/sport'
 import logo from '@/assets/Logo2.png'
 
@@ -22,7 +21,7 @@ const sportStore = useSportStore()
 const entries = ref<ScheduleEntry[]>([])
 const articles = ref<NewsArticle[]>([])
 const teams = ref<Team[]>([])
-const players = ref<Player[]>([])
+const summary = ref<TeamSummary | null>(null)
 
 // One failing section should not blank the whole page, so each request is
 // settled on its own and a failure just leaves that list empty.
@@ -46,19 +45,17 @@ const sponsors = [
 async function loadHome() {
   const sport = sportStore.activeSport
 
-  const [schedule, news, teamList, playerList] = await Promise.allSettled([
+  const [schedule, news, teamList, counts] = await Promise.allSettled([
     getSchedule({ sport }),
     getNews(sport),
     getTeams(sport),
-    getPlayers(),
+    getTeamSummary(sport),
   ])
 
   if (schedule.status === 'fulfilled') entries.value = schedule.value
   if (news.status === 'fulfilled') articles.value = news.value
   if (teamList.status === 'fulfilled') teams.value = teamList.value
-  if (playerList.status === 'fulfilled') {
-    players.value = playerList.value.filter((p) => p.sport === sport)
-  }
+  summary.value = counts.status === 'fulfilled' ? counts.value : null
 }
 
 onMounted(loadHome)
@@ -88,11 +85,11 @@ const leagues = computed(() =>
   )
 )
 
-const playerCount = computed(() => players.value.length)
-
-const gameCount = computed(
-  () => entries.value.filter((e) => e.type === 'Game').length
-)
+// Counted on the server for the live teams' current seasons. Counting the
+// player and schedule lists here took in every season on file, archived teams
+// and all, so the band showed 24 players for a club with one team of 12.
+const playerCount = computed(() => summary.value?.players ?? 0)
+const gameCount = computed(() => summary.value?.games ?? 0)
 
 const formatEventDate = (dateStr: string) => {
   const [y, m, d] = dateStr.split('-').map(Number)

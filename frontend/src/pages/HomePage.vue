@@ -254,7 +254,12 @@ const excerpt = (content: string, limit = 140) => {
         </div>
 
         <div class="grid gap-6 sm:grid-cols-3">
-          <router-link v-for="article in latestNews" :key="article.id" to="/news" class="group">
+          <router-link
+            v-for="article in latestNews"
+            :key="article.id"
+            :to="{ path: '/news', hash: `#news-${article.id}` }"
+            class="group"
+          >
             <div class="aspect-[16/10] rounded-lg overflow-hidden bg-ibc-navy/5 mb-3">
               <img
                 v-if="article.image_path"

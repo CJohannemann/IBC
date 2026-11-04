@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { getNews, type NewsArticle } from '@/api/news'
 import { useSportStore } from '@/stores/sport'
 
 const sportStore = useSportStore()
+const route = useRoute()
 const articles = ref<NewsArticle[]>([])
 const loading = ref(true)
 const lightboxImage = ref<string | null>(null)
@@ -16,6 +18,20 @@ async function loadNews() {
     console.error('Failed to load news:', e)
   } finally {
     loading.value = false
+  }
+  await scrollToLinkedArticle()
+}
+
+// Homepage cards link to /news#news-<id>. The articles only exist once loaded,
+// so the scroll happens here rather than in the router.
+async function scrollToLinkedArticle() {
+  if (!route.hash) return
+  await nextTick()
+  const target = document.getElementById(route.hash.slice(1))
+  if (target) {
+    target.scrollIntoView({ block: 'start' })
+  } else {
+    window.scrollTo({ top: 0 })
   }
 }
 
@@ -60,8 +76,9 @@ function closeLightbox() {
       <div v-else class="space-y-8">
         <article
           v-for="article in articles"
+          :id="`news-${article.id}`"
           :key="article.id"
-          class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
+          class="scroll-mt-6 bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
         >
           <!-- Image (if exists) -->
           <img

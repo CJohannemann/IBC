@@ -62,6 +62,16 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
     },
   ],
+  scrollBehavior(to, _from, savedPosition) {
+    // Back/forward returns to where the visitor was.
+    if (savedPosition) return savedPosition
+    // A #hash target may not exist yet (pages load their data after mounting),
+    // so the page scrolls to it itself once its content is in.
+    if (to.hash) return false
+    // Every other navigation starts at the top, not at the previous page's
+    // scroll position.
+    return { top: 0 }
+  },
 })
 
 router.beforeEach(async (to) => {
